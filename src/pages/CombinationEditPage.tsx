@@ -45,7 +45,7 @@ import {
   SaveOutlined,
 } from '@ant-design/icons'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 export function CombinationEditPage() {
   const navigate = useNavigate()

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/shell'
 import { AdminStoreProvider } from './lib/store'
 import { CombinationEditPage } from './pages/CombinationEditPage'
@@ -15,7 +15,7 @@ import { StrategiesListPage } from './pages/StrategiesListPage'
 function App() {
   return (
     <AdminStoreProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/combinations" replace />} />
           <Route element={<AppShell />}>
@@ -31,7 +31,7 @@ function App() {
             <Route path="/preview" element={<PreviewPage />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </AdminStoreProvider>
   )
 }

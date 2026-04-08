@@ -7,7 +7,6 @@ import {
   GiftOutlined,
   OrderedListOutlined,
   RocketOutlined,
-  ToolOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'

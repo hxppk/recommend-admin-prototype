@@ -214,7 +214,7 @@ function assignAbGroup(plan: Plan, userId: string) {
     if (point < cursor) return group.name
   }
 
-  return groups.at(-1)?.name ?? null
+  return groups[groups.length - 1]?.name ?? null
 }
 
 function pickProductFromStrategy(

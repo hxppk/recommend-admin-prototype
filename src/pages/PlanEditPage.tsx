@@ -69,10 +69,6 @@ export function PlanEditPage() {
   const currentDraft = draft
   const conflicts = pendingSave ? findPlanConflicts(state, pendingSave) : []
 
-  function toggleValue(list: string[], value: string) {
-    return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
-  }
-
   function updateStoreScope(type: StoreScopeType) {
     setDraft({
       ...currentDraft,

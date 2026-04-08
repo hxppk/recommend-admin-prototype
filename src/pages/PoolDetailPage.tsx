@@ -60,8 +60,6 @@ export function PoolDetailPage() {
   const [editingInfo, setEditingInfo] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
   const [descDraft, setDescDraft] = useState('')
-  // 删除确认输入
-  const [deleteConfirmName, setDeleteConfirmName] = useState('')
   // 导入 tab
   const [importTab, setImportTab] = useState<string>('text')
 
@@ -353,7 +351,6 @@ export function PoolDetailPage() {
                         content: `该选品池被 ${references.length} 个排序策略使用，无法删除。请先解除关联。`,
                       })
                     } else {
-                      setDeleteConfirmName('')
                       Modal.confirm({
                         title: '确认删除',
                         icon: null,
