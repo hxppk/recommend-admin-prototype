@@ -1,0 +1,383 @@
+<html lang="en" vid="0"><head vid="1">
+<meta charset="UTF-8" vid="2">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+<title vid="4">Design Sync - Live Session</title>
+<style vid="5">
+  :root {
+    --bg-master: #271418; 
+    --bg-detail: #151515; 
+    --bg-card: #222222; 
+    --bg-card-hover: #2A2A2A;
+    --bg-action-btn: rgba(255, 255, 255, 0.06); 
+    --bg-action-btn-hover: rgba(255, 255, 255, 0.1);
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.45); 
+    --text-tertiary: rgba(255, 255, 255, 0.25);
+    --accent-gradient: linear-gradient(90deg, #4A4DFF 0%, #E91E63 50%, #FF9800 100%); 
+    --badge-bg: #333333; 
+    --radius-lg: 12px;
+    --radius-md: 10px; 
+    --radius-sm: 8px;  
+    --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-family);
+    background-color: var(--bg-detail);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    width: 1280px;
+    height: 960px;
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .layout-master {
+    width: 320px;
+    background-color: var(--bg-master);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+
+  .layout-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #0f0f0f;
+    position: relative;
+  }
+
+  
+  .session-header {
+    height: 64px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--bg-detail);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .session-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(233, 30, 99, 0.15);
+    color: #E91E63;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    background: #E91E63;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  
+  .main-stage {
+    flex: 1;
+    display: flex;
+    padding: 16px;
+    gap: 16px;
+    overflow: hidden;
+  }
+
+  .video-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .video-feed {
+    background: #1a1a1a;
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .video-feed.speaking {
+    border: 2px solid #4A4DFF;
+  }
+
+  .video-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .participant-label {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(4px);
+  }
+
+  .mic-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .mic-muted { color: #E91E63; }
+
+  
+  .chat-panel {
+    width: 300px;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .chat-header {
+    padding: 16px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .msg-user {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .msg-text {
+    font-size: 13px;
+    background: rgba(255,255,255,0.03);
+    padding: 8px 12px;
+    border-radius: 0 12px 12px 12px;
+    max-width: 90%;
+    line-height: 1.4;
+  }
+
+  .chat-input-area {
+    padding: 16px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .chat-input {
+    width: 100%;
+    background: var(--bg-detail);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: 13px;
+  }
+
+  
+  .session-controls {
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background-color: var(--bg-detail);
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .control-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: white;
+    transition: all 0.2s;
+  }
+
+  .control-btn:hover { background: var(--bg-card-hover); }
+  .control-btn.danger { background: #E91E63; border: none; }
+  .control-btn.danger:hover { background: #D81B60; }
+
+  
+  .master-header { padding: 24px 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+  .master-header-top { display: flex; justify-content: space-between; align-items: center; }
+  .logo-area { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-gradient); }
+  .search-input { width: 100%; background: var(--bg-action-btn); border: 1px solid transparent; border-radius: var(--radius-sm); padding: 8px 12px; color: white; font-size: 13px; }
+  .master-list { flex: 1; padding: 0 12px; display: flex; flex-direction: column; gap: 4px; }
+  .list-item { padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; position: relative; }
+  .list-item.active { background: var(--bg-action-btn-hover); }
+  .list-item.active::after { content: ''; position: absolute; bottom: 0; left: 12px; right: 12px; height: 3px; background: var(--accent-gradient); border-radius: 3px 3px 0 0; }
+  .list-item-title { font-weight: 500; }
+  .list-item-meta { font-size: 11px; color: var(--text-tertiary); font-family: monospace; float: right; }
+  .list-item-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; }
+  .status-dot.online { background-color: #4CAF50; }
+</style>
+</head>
+<body vid="6">
+
+  <aside class="layout-master" vid="7">
+    <div class="master-header" vid="8">
+      <div class="master-header-top" vid="9">
+        <div class="logo-area" vid="10"><div class="logo-dot" vid="11"></div>Workspaces</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-tertiary" vid="12"><path d="M12 5v14M5 12h14" vid="13"></path></svg>
+      </div>
+      <input type="text" class="search-input" placeholder="Search spaces..." vid="14">
+    </div>
+    <div class="master-list" vid="15">
+      <div class="list-item active" vid="16">
+        <span class="list-item-meta" vid="17">ID-902</span>
+        <div class="list-item-title" vid="18">Design Sync</div>
+        <div class="list-item-desc" vid="19"><span class="status-dot online" vid="20"></span> Active now • 12 participants</div>
+      </div>
+      <div class="list-item" vid="21">
+        <span class="list-item-meta" vid="22">ID-104</span>
+        <div class="list-item-title" vid="23">Personal Room</div>
+        <div class="list-item-desc" vid="24">Locked • /julia</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="layout-detail" vid="25">
+    <header class="session-header" vid="26">
+      <div class="session-info" vid="27">
+        <div class="live-indicator" vid="28">
+          <div class="live-dot" vid="29"></div>
+          Live
+        </div>
+        <h2 style="font-size: 16px;" vid="30">Design Sync / <span class="text-secondary" vid="31">#designers</span></h2>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;" vid="32">
+        <span class="text-secondary text-small" vid="33">01:45:22</span>
+        <div style="height: 16px; width: 1px; background: rgba(255,255,255,0.1);" vid="34"></div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-secondary" vid="35"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" vid="36"></path><circle cx="9" cy="7" r="4" vid="37"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87" vid="38"></path><path d="M16 3.13a4 4 0 0 1 0 7.75" vid="39"></path></svg>
+        <span style="font-size: 13px; font-weight: 600;" vid="40">12</span>
+      </div>
+    </header>
+
+    <div class="main-stage" vid="41">
+      <div class="video-grid" vid="42">
+        
+        <div class="video-feed speaking" vid="43">
+          <div class="video-placeholder" style="background: #4A4DFF;" vid="44">JC</div>
+          <div class="participant-label" vid="45">
+            <svg class="mic-icon" viewBox="0 0 24 24" fill="currentColor" vid="46"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" vid="47"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2" vid="48"></path><line x1="12" y1="19" x2="12" y2="23" vid="49"></line><line x1="8" y1="23" x2="16" y2="23" vid="50"></line></svg>
+            Julia C. (Host)
+          </div>
+        </div>
+        <div class="video-feed" vid="51">
+          <div class="video-placeholder" style="background: #E91E63;" vid="52">AC</div>
+          <div class="participant-label" vid="53">
+            <svg class="mic-icon mic-muted" viewBox="0 0 24 24" fill="currentColor" vid="54"><path d="M18.89 12.85A10.12 10.12 0 0 1 12 15a10.12 10.12 0 0 1-6.89-2.15l-1.42 1.42A12.12 12.12 0 0 0 12 17a12.12 12.12 0 0 0 8.31-2.73z" vid="55"></path><path d="M6.71 4.29L5.29 5.71l13 13 1.42-1.42z" vid="56"></path></svg>
+            Alex Chen
+          </div>
+        </div>
+        <div class="video-feed" vid="57"><div class="video-placeholder" vid="58">MK</div><div class="participant-label" vid="59">Marcus K.</div></div>
+        <div class="video-feed" vid="60"><div class="video-placeholder" vid="61">SL</div><div class="participant-label" vid="62">Sarah L.</div></div>
+        <div class="video-feed" vid="63"><div class="video-placeholder" vid="64">TW</div><div class="participant-label" vid="65">Tom W.</div></div>
+        <div class="video-feed" vid="66"><div class="video-placeholder" vid="67">RN</div><div class="participant-label" vid="68">Rita N.</div></div>
+        <div class="video-feed" vid="69"><div class="video-placeholder" vid="70">JP</div><div class="participant-label" vid="71">James P.</div></div>
+        <div class="video-feed" vid="72"><div class="video-placeholder" vid="73">HL</div><div class="participant-label" vid="74">H. Lee</div></div>
+        <div class="video-feed" vid="75"><div class="video-placeholder" vid="76">DB</div><div class="participant-label" vid="77">Dan B.</div></div>
+        <div class="video-feed" vid="78"><div class="video-placeholder" vid="79">EM</div><div class="participant-label" vid="80">Emma M.</div></div>
+        <div class="video-feed" vid="81"><div class="video-placeholder" vid="82">KV</div><div class="participant-label" vid="83">Kevin V.</div></div>
+        <div class="video-feed" vid="84"><div class="video-placeholder" vid="85">LZ</div><div class="participant-label" vid="86">Leo Z.</div></div>
+      </div>
+
+      <aside class="chat-panel" vid="87">
+        <div class="chat-header" vid="88">
+          <span vid="89">Chat</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-tertiary" vid="90"><path d="M18 6L6 18M6 6l12 12" vid="91"></path></svg>
+        </div>
+        <div class="chat-messages" vid="92">
+          <div class="message" vid="93">
+            <span class="msg-user" vid="94">Julia C.</span>
+            <div class="msg-text" vid="95">Has everyone seen the latest prototype?</div>
+          </div>
+          <div class="message" vid="96">
+            <span class="msg-user" vid="97">Alex Chen</span>
+            <div class="msg-text" vid="98">Looking at it now. The new navigation flow is much smoother!</div>
+          </div>
+          <div class="message" vid="99">
+            <span class="msg-user" vid="100">Sarah L.</span>
+            <div class="msg-text" vid="101">I have some thoughts on the mobile layout, can I share my screen later?</div>
+          </div>
+          <div class="message" vid="102">
+            <span class="msg-user" vid="103">Marcus K.</span>
+            <div class="msg-text" vid="104">Agreed with Alex.</div>
+          </div>
+        </div>
+        <div class="chat-input-area" vid="105">
+          <input type="text" class="chat-input" placeholder="Message participants..." vid="106">
+        </div>
+      </aside>
+    </div>
+
+    <footer class="session-controls" vid="107">
+      <div class="control-btn" vid="108"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="109"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" vid="110"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2" vid="111"></path><line x1="12" y1="19" x2="12" y2="23" vid="112"></line><line x1="8" y1="23" x2="16" y2="23" vid="113"></line></svg></div>
+      <div class="control-btn" vid="114"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="115"><path d="M23 7l-7 5 7 5V7z" vid="116"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2" vid="117"></rect></svg></div>
+      <div class="control-btn" vid="118"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="119"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" vid="120"></rect><line x1="8" y1="21" x2="16" y2="21" vid="121"></line><line x1="12" y1="17" x2="12" y2="21" vid="122"></line></svg></div>
+      <div class="control-btn" vid="123"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="124"><circle cx="12" cy="12" r="10" vid="125"></circle><line x1="12" y1="8" x2="12" y2="12" vid="126"></line><line x1="12" y1="16" x2="12.01" y2="16" vid="127"></line></svg></div>
+      <div class="control-btn danger" vid="128"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" vid="129"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 2.59 3.4z" vid="130"></path></svg></div>
+    </footer>
+  </main>
+
+</body></html>

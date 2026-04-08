@@ -1,0 +1,576 @@
+<html lang="en" vid="0"><head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+    <title vid="4">Recommendation Management Platform</title>
+    <style vid="5">
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            
+            --bg-void: #020405; 
+            --bg-surface-1: #060B0E; 
+            --bg-surface-2: #0A1318; 
+            
+            --border-faint: #12242B;
+            --border-lit: #1A3642;
+            
+            
+            --accent-teal: #32B8D2; 
+            --accent-teal-dim: #154D5A;
+            --accent-teal-glow: rgba(50, 184, 210, 0.15);
+            
+            
+            --accent-gold: #E2D9A5;
+            --accent-gold-dim: #8A8461;
+            
+            
+            --text-bright: #E8F4F6;
+            --text-base: #B0C8CE;
+            --text-muted: #5C7A83;
+            --text-dark: #060B0E; 
+
+            --font-display: 'Playfair Display', Georgia, serif;
+            --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+
+            --radius-sharp: 0px;
+            --radius-slight: 2px;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-xxl: 48px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg-void);
+            color: var(--text-base);
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            
+            background-image: radial-gradient(circle at 50% 0%, rgba(10, 19, 24, 0.8) 0%, var(--bg-void) 70%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        
+        h1, h2, h3, .serif-heading {
+            font-family: var(--font-display);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        
+        .tagline-caps {
+            font-family: var(--font-display);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-size: 11px;
+            color: var(--accent-gold);
+        }
+
+        
+        .title-gold {
+            background: linear-gradient(to bottom, #FFFFFF 0%, var(--accent-gold) 60%, #9A9266 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        
+        .sidebar {
+            width: 240px;
+            background-color: var(--bg-void);
+            border-right: 1px solid var(--border-faint);
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing-xl) 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            z-index: 10;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: var(--spacing-xxl);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        
+        .brand {
+            padding: 0 var(--spacing-xl) var(--spacing-xxl);
+            font-size: 20px;
+        }
+
+        .nav-section {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .nav-header {
+            padding: 0 var(--spacing-xl);
+            margin-bottom: var(--spacing-sm);
+            color: var(--text-muted);
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-xl);
+            color: var(--text-base);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            color: var(--text-bright);
+            background-color: var(--bg-surface-1);
+        }
+
+        .nav-item.active {
+            color: var(--accent-teal);
+            background-color: var(--bg-surface-2);
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: var(--accent-teal);
+            box-shadow: 0 0 8px var(--accent-teal-glow);
+        }
+
+        
+        
+        
+        .panel {
+            background-color: var(--bg-surface-1);
+            border: 1px solid var(--border-faint);
+            border-radius: var(--radius-slight);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        
+        .panel:hover {
+            border-color: var(--border-lit);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.02);
+        }
+
+        .panel-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-faint);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(10,19,24,0.5), transparent);
+        }
+
+        .panel-body {
+            padding: var(--spacing-lg);
+        }
+
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .metric-card {
+            padding: var(--spacing-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .metric-value {
+            font-size: 32px;
+            color: var(--text-bright);
+            line-height: 1.1;
+        }
+
+        .metric-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .metric-trend {
+            font-size: 11px;
+            color: var(--accent-teal);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: var(--spacing-sm);
+        }
+
+        .metric-trend.negative {
+            color: var(--accent-gold-dim);
+        }
+
+        
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-base);
+            font-size: 12px;
+        }
+
+        .form-control {
+            width: 100%;
+            background-color: var(--bg-void);
+            border: 1px solid var(--border-faint);
+            color: var(--text-bright);
+            padding: 10px 12px;
+            font-family: var(--font-ui);
+            font-size: 13px;
+            border-radius: var(--radius-slight);
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-teal);
+            box-shadow: 0 0 0 1px var(--accent-teal-glow) inset;
+        }
+
+        .form-control::placeholder {
+            color: var(--text-muted);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235C7A83' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            font-family: var(--font-ui);
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: var(--radius-slight);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-teal-dim);
+            color: var(--text-bright);
+            border: 1px solid var(--accent-teal);
+            box-shadow: 0 0 10px var(--accent-teal-glow);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-teal);
+            color: var(--text-dark);
+            box-shadow: 0 0 15px rgba(50, 184, 210, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-base);
+            border: 1px solid var(--border-lit);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-teal-dim);
+            color: var(--text-bright);
+            background-color: rgba(26, 54, 66, 0.3);
+        }
+
+        
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-lit);
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-faint);
+            vertical-align: middle;
+        }
+
+        tr:hover td {
+            background-color: rgba(10, 19, 24, 0.6);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .cell-main {
+            color: var(--text-bright);
+            font-weight: 500;
+        }
+
+        .cell-sub {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+
+        .status-active {
+            background-color: rgba(50, 184, 210, 0.1);
+            color: var(--accent-teal);
+            border: 1px solid rgba(50, 184, 210, 0.2);
+        }
+
+        .status-pending {
+            background-color: rgba(226, 217, 165, 0.05);
+            color: var(--accent-gold);
+            border: 1px solid rgba(226, 217, 165, 0.2);
+        }
+
+        
+        .dashboard-header {
+            margin-bottom: var(--spacing-xl);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .dashboard-header h1 {
+            font-size: 32px;
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: var(--spacing-xl);
+        }
+
+    </style>
+</head>
+<body vid="6">
+
+    
+    <aside class="sidebar" vid="7">
+        <div class="brand" vid="8">
+            <div class="tagline-caps" vid="9">Rec. Engine</div>
+            <div class="serif-heading title-gold" style="font-size: 24px; margin-top: 4px;" vid="10">NEXUS</div>
+        </div>
+
+        <div class="nav-section" vid="11">
+            <div class="tagline-caps nav-header" vid="12">Core</div>
+            <a href="#" class="nav-item active" vid="13">Dashboard</a>
+            <a href="#" class="nav-item" vid="14">Algorithms</a>
+            <a href="#" class="nav-item" vid="15">Data Sources</a>
+        </div>
+
+        <div class="nav-section" vid="16">
+            <div class="tagline-caps nav-header" vid="17">Management</div>
+            <a href="#" class="nav-item" vid="18">Rulesets</a>
+            <a href="#" class="nav-item" vid="19">A/B Testing</a>
+            <a href="#" class="nav-item" vid="20">Overrides</a>
+        </div>
+
+        <div class="nav-section" style="margin-top: auto;" vid="21">
+            <div class="tagline-caps nav-header" vid="22">System</div>
+            <a href="#" class="nav-item" vid="23">Settings</a>
+            <a href="#" class="nav-item" vid="24">Audit Logs</a>
+        </div>
+    </aside>
+
+    
+    <main class="main-content" vid="25">
+        
+        <header class="dashboard-header" vid="26">
+            <div vid="27">
+                <div class="tagline-caps" vid="28">System Overview</div>
+                <h1 class="serif-heading title-gold" vid="29">Recommendation Yield</h1>
+            </div>
+            <div style="display: flex; gap: var(--spacing-sm);" vid="30">
+                <button class="btn btn-secondary" vid="31">Export Report</button>
+                <button class="btn btn-primary" vid="32">Deploy Model</button>
+            </div>
+        </header>
+
+        
+        <div class="metrics-grid" vid="33">
+            <div class="panel metric-card" vid="34">
+                <div class="metric-label" vid="35">TOTAL IMPRESSIONS</div>
+                <div class="metric-value serif-heading" vid="36">24.8M</div>
+                <div class="metric-trend" vid="37">↑ 12.4% vs last week</div>
+            </div>
+            <div class="panel metric-card" vid="38">
+                <div class="metric-label" vid="39">CLICK-THROUGH RATE</div>
+                <div class="metric-value serif-heading" vid="40">3.24%</div>
+                <div class="metric-trend" vid="41">↑ 0.8% vs last week</div>
+            </div>
+            <div class="panel metric-card" vid="42">
+                <div class="metric-label" vid="43">CONVERSION LIFT</div>
+                <div class="metric-value serif-heading" vid="44">18.5%</div>
+                <div class="metric-trend negative" vid="45">↓ 1.2% vs last week</div>
+            </div>
+            <div class="panel metric-card" vid="46">
+                <div class="metric-label" vid="47">ACTIVE MODELS</div>
+                <div class="metric-value serif-heading" vid="48">12</div>
+                <div class="metric-trend" style="color: var(--text-muted)" vid="49">System Nominal</div>
+            </div>
+        </div>
+
+        <div class="content-grid" vid="50">
+            
+            
+            <div class="panel" vid="51">
+                <div class="panel-header" vid="52">
+                    <h2 class="serif-heading" style="font-size: 18px; color: var(--text-bright);" vid="53">Active Algorithms</h2>
+                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" vid="54">Filter</button>
+                </div>
+                <div class="table-container" vid="55">
+                    <table vid="56">
+                        <thead vid="57">
+                            <tr vid="58">
+                                <th vid="59">Model Designation</th>
+                                <th vid="60">Target Segment</th>
+                                <th vid="61">Weight</th>
+                                <th vid="62">Status</th>
+                                <th vid="63">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody vid="64">
+                            <tr vid="65">
+                                <td vid="66">
+                                    <div class="cell-main" vid="67">Collaborative Filtering v4</div>
+                                    <div class="cell-sub" vid="68">User-item matrix factorization</div>
+                                </td>
+                                <td vid="69">Returning Users</td>
+                                <td vid="70">0.65</td>
+                                <td vid="71"><span class="status-badge status-active" vid="72">LIVE</span></td>
+                                <td vid="73"><a href="#" style="color: var(--accent-teal); text-decoration: none;" vid="74">Edit</a></td>
+                            </tr>
+                            <tr vid="75">
+                                <td vid="76">
+                                    <div class="cell-main" vid="77">Contextual Bandit (Epsilon)</div>
+                                    <div class="cell-sub" vid="78">Real-time exploration strategy</div>
+                                </td>
+                                <td vid="79">Cold Start / New</td>
+                                <td vid="80">0.20</td>
+                                <td vid="81"><span class="status-badge status-active" vid="82">LIVE</span></td>
+                                <td vid="83"><a href="#" style="color: var(--accent-teal); text-decoration: none;" vid="84">Edit</a></td>
+                            </tr>
+                            <tr vid="85">
+                                <td vid="86">
+                                    <div class="cell-main" vid="87">Content-Based Affinity</div>
+                                    <div class="cell-sub" vid="88">Vector similarity search</div>
+                                </td>
+                                <td vid="89">High-Intent Browsers</td>
+                                <td vid="90">0.15</td>
+                                <td vid="91"><span class="status-badge status-active" vid="92">LIVE</span></td>
+                                <td vid="93"><a href="#" style="color: var(--accent-teal); text-decoration: none;" vid="94">Edit</a></td>
+                            </tr>
+                            <tr vid="95">
+                                <td vid="96">
+                                    <div class="cell-main" vid="97">Seasonal Trending Heuristic</div>
+                                    <div class="cell-sub" vid="98">Time-decayed popularity</div>
+                                </td>
+                                <td vid="99">Global Fallback</td>
+                                <td vid="100">--</td>
+                                <td vid="101"><span class="status-badge status-pending" vid="102">TRAINING</span></td>
+                                <td vid="103"><a href="#" style="color: var(--accent-teal); text-decoration: none;" vid="104">View</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+            <div class="panel" vid="105">
+                <div class="panel-header" vid="106">
+                    <h2 class="serif-heading" style="font-size: 18px; color: var(--text-bright);" vid="107">Manual Override</h2>
+                </div>
+                <div class="panel-body" vid="108">
+                    <p style="color: var(--text-muted); margin-bottom: var(--spacing-lg);" vid="109">Force specific items into recommendation slots regardless of algorithm scoring.</p>
+                    
+                    <form vid="110">
+                        <div class="form-group" vid="111">
+                            <label class="form-label tagline-caps" style="font-size: 10px;" vid="112">Target Placement</label>
+                            <select class="form-control" vid="113">
+                                <option vid="114">Homepage Hero Carousel</option>
+                                <option vid="115">Checkout Cross-sell</option>
+                                <option vid="116">Category Top Picks</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group" vid="117">
+                            <label class="form-label tagline-caps" style="font-size: 10px;" vid="118">Item ID (SKU)</label>
+                            <input type="text" class="form-control" placeholder="e.g. PRD-992-AX" vid="119">
+                        </div>
+
+                        <div class="form-group" vid="120">
+                            <label class="form-label tagline-caps" style="font-size: 10px;" vid="121">Boost Multiplier</label>
+                            <input type="number" class="form-control" placeholder="1.0" step="0.1" min="1" max="10" vid="122">
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;" vid="123">Values &gt; 1.0 artificially inflate score.</div>
+                        </div>
+
+                        <div style="margin-top: var(--spacing-xl); padding-top: var(--spacing-md); border-top: 1px solid var(--border-faint); display: flex; justify-content: flex-end;" vid="124">
+                            <button type="button" class="btn btn-primary" vid="125">Apply Override</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+
+</body></html>

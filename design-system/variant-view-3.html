@@ -1,0 +1,442 @@
+<html lang="en" vid="0"><head vid="1">
+<meta charset="UTF-8" vid="2">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+<title vid="4">Admin System - Create Workspace</title>
+<style vid="5">
+  :root {
+    --bg-master: #271418; 
+    --bg-detail: #151515; 
+    --bg-card: #222222; 
+    --bg-card-hover: #2A2A2A;
+    --bg-action-btn: rgba(255, 255, 255, 0.06); 
+    --bg-action-btn-hover: rgba(255, 255, 255, 0.1);
+    
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.45); 
+    --text-tertiary: rgba(255, 255, 255, 0.25);
+    
+    --accent-gradient: linear-gradient(90deg, #4A4DFF 0%, #E91E63 50%, #FF9800 100%); 
+    --badge-bg: #333333; 
+    
+    --radius-lg: 12px;
+    --radius-md: 10px; 
+    --radius-sm: 8px;  
+    
+    --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-family);
+    background-color: var(--bg-detail);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  
+  .text-secondary { color: var(--text-secondary); }
+  .text-small { font-size: 12px; }
+  .text-tabular { font-variant-numeric: tabular-nums; }
+
+  
+  .layout-master {
+    width: 320px;
+    background-color: var(--bg-master);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(0,0,0,0.5);
+  }
+
+  .layout-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-detail);
+    filter: blur(4px); 
+  }
+
+  
+  .master-header {
+    padding: 24px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .master-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo-area {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+  }
+
+  .search-input {
+    width: 100%;
+    background-color: var(--bg-action-btn);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  .master-list {
+    flex: 1;
+    padding: 0 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .list-item {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    position: relative;
+  }
+
+  .list-item.active {
+    background-color: var(--bg-action-btn-hover);
+  }
+  
+  .list-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 3px;
+    background: var(--accent-gradient);
+    border-radius: 3px 3px 0 0;
+  }
+
+  .list-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .list-item-title { font-weight: 500; }
+  .list-item-meta { font-size: 11px; color: var(--text-tertiary); font-family: monospace; }
+  .list-item-desc { font-size: 12px; color: var(--text-secondary); }
+
+  
+  .detail-header { padding: 32px 40px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .breadcrumb { font-size: 12px; color: var(--text-tertiary); margin-bottom: 8px; }
+  .detail-title h1 { font-size: 24px; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .detail-subtitle { font-size: 14px; color: var(--text-secondary); display: flex; gap: 12px; }
+  .badge { background-color: var(--badge-bg); color: var(--text-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-container {
+    width: 520px;
+    background-color: #1A1A1A;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+    animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .modal-header {
+    padding: 24px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title { font-size: 18px; font-weight: 600; }
+
+  .modal-body {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .form-control {
+    background-color: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+    transition: all 0.2s;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: rgba(255,255,255,0.2);
+    background-color: rgba(255,255,255,0.06);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  
+  .config-section {
+    background-color: rgba(255,255,255,0.02);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .toggle-label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .toggle-desc {
+    font-size: 11px;
+    color: var(--text-tertiary);
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255,255,255,0.1);
+    transition: .4s;
+    border-radius: 20px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+
+  input:checked + .slider {
+    background: var(--accent-gradient);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(16px);
+  }
+
+  .modal-footer {
+    padding: 24px 32px;
+    background-color: rgba(255,255,255,0.02);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .btn {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn.primary {
+    background: #FFFFFF;
+    color: #000;
+    border: none;
+    font-weight: 600;
+  }
+
+  .btn.primary:hover { background: #E0E0E0; }
+  .btn:hover { background-color: var(--bg-card-hover); }
+
+</style>
+</head>
+<body vid="6">
+
+  <aside class="layout-master" vid="7">
+    <div class="master-header" vid="8">
+      <div class="master-header-top" vid="9">
+        <div class="logo-area" vid="10"><div class="logo-dot" vid="11"></div>Workspaces</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-tertiary" vid="12"><path d="M12 5v14M5 12h14" vid="13"></path></svg>
+      </div>
+      <input type="text" class="search-input" placeholder="Search spaces or users..." vid="14">
+    </div>
+    <div class="master-list" vid="15">
+      <div class="list-item active" vid="16">
+        <div class="list-item-header" vid="17"><span class="list-item-title" vid="18">Design Sync</span><span class="list-item-meta" vid="19">ID-902</span></div>
+        <div class="list-item-desc" vid="20">Active now • 12 participants</div>
+      </div>
+      <div class="list-item" vid="21">
+        <div class="list-item-header" vid="22"><span class="list-item-title" vid="23">Personal Room</span><span class="list-item-meta" vid="24">ID-104</span></div>
+        <div class="list-item-desc" vid="25">Locked • /julia</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="layout-detail" vid="26">
+    <header class="detail-header" vid="27">
+      <div class="breadcrumb" vid="28">Workspaces / Design Sync</div>
+      <div class="detail-title" vid="29">
+        <h1 vid="30">Design Sync</h1>
+        <div class="detail-subtitle" vid="31"><span class="badge" vid="32">Live</span><span vid="33">/designers</span></div>
+      </div>
+    </header>
+  </main>
+
+  
+  <div class="modal-overlay" vid="34">
+    <div class="modal-container" vid="35">
+      <div class="modal-header" vid="36">
+        <h2 class="modal-title" vid="37">New Workspace</h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-tertiary" style="cursor:pointer;" vid="38"><path d="M18 6L6 18M6 6l12 12" vid="39"></path></svg>
+      </div>
+      
+      <div class="modal-body" vid="40">
+        <div class="form-row" vid="41">
+          <div class="form-group" vid="42">
+            <label class="form-label" vid="43">Workspace Name</label>
+            <input type="text" class="form-control" placeholder="e.g. Weekly Sync" vid="44">
+          </div>
+          <div class="form-group" vid="45">
+            <label class="form-label" vid="46">URL Slug</label>
+            <input type="text" class="form-control" placeholder="/my-room" vid="47">
+          </div>
+        </div>
+
+        <div class="form-row" vid="48">
+          <div class="form-group" vid="49">
+            <label class="form-label" vid="50">Access Level</label>
+            <select class="form-control" style="appearance: none;" vid="51">
+              <option vid="52">Invite Only</option>
+              <option vid="53">Public</option>
+              <option vid="54">Private</option>
+            </select>
+          </div>
+          <div class="form-group" vid="55">
+            <label class="form-label" vid="56">Host Assignment</label>
+            <input type="text" class="form-control" placeholder="Search users..." vid="57">
+          </div>
+        </div>
+
+        <div class="form-group" vid="58">
+          <label class="form-label" vid="59">Configuration</label>
+          <div class="config-section" vid="60">
+            <div class="toggle-row" vid="61">
+              <div class="toggle-label-group" vid="62">
+                <span vid="63">Echo Termination</span>
+                <span class="toggle-desc" vid="64">Auto-suppress acoustic feedback loops</span>
+              </div>
+              <label class="switch" vid="65">
+                <input type="checkbox" checked="" vid="66">
+                <span class="slider" vid="67"></span>
+              </label>
+            </div>
+            <div class="toggle-row" vid="68">
+              <div class="toggle-label-group" vid="69">
+                <span vid="70">Recording</span>
+                <span class="toggle-desc" vid="71">Enable cloud session storage</span>
+              </div>
+              <label class="switch" vid="72">
+                <input type="checkbox" vid="73">
+                <span class="slider" vid="74"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" vid="75">
+        <button class="btn" vid="76">Cancel</button>
+        <button class="btn primary" vid="77">Create Workspace</button>
+      </div>
+    </div>
+  </div>
+
+</body></html>

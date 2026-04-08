@@ -1,0 +1,72 @@
+/* ===================================
+   Design Tokens — NEXUS Dark Theme
+   =================================== */
+
+:root {
+  /* ---- 背景 ---- */
+  --bg: #020405;
+  --bg-surface-1: #060B0E;
+  --bg-surface-2: #0A1318;
+  --surface: #060B0E;
+
+  /* ---- 边框 ---- */
+  --border: #12242B;
+  --border-hover: #1A3642;
+
+  /* ---- 文字 ---- */
+  --text-main: #E8F4F6;
+  --text-secondary: #B0C8CE;
+  --text-muted: #5C7A83;
+  --text-label: #5C7A83;
+
+  /* ---- 强调色 ---- */
+  --accent-teal: #32B8D2;
+  --accent-teal-dim: #154D5A;
+  --accent-teal-glow: rgba(50, 184, 210, 0.15);
+  --accent-gold: #E2D9A5;
+  --accent-gold-dim: #8A8461;
+
+  /* ---- 语义色 ---- */
+  --color-green: #4ADE80;
+  --color-green-bg: rgba(74, 222, 128, 0.12);
+  --color-red: #E25C5C;
+  --color-red-bg: rgba(226, 92, 92, 0.12);
+  --color-purple: #A78BFA;
+  --color-purple-bg: rgba(167, 139, 250, 0.12);
+  --color-orange: #FBBF24;
+  --color-orange-bg: rgba(251, 191, 36, 0.12);
+  --color-blue: #32B8D2;
+  --color-blue-bg: rgba(50, 184, 210, 0.12);
+
+  /* ---- 按钮 ---- */
+  --btn-primary: #32B8D2;
+  --btn-primary-hover: #2AA3BB;
+
+  /* ---- 圆角 ---- */
+  --radius-panel: 2px;
+  --radius-element: 2px;
+  --radius-pill: 2px;
+
+  /* ---- 投影 ---- */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-float: 0 8px 24px rgba(0,0,0,0.5);
+
+  /* ---- 间距 ---- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+
+  /* ---- 字号 ---- */
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-base: 13px;
+  --font-md: 14px;
+  --font-lg: 15px;
+  --font-xl: 18px;
+  --font-2xl: 20px;
+}

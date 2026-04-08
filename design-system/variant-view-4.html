@@ -1,0 +1,632 @@
+<html lang="en" vid="0"><head vid="1">
+<meta charset="UTF-8" vid="2">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" vid="3">
+<title vid="4">Design Sync - Participant Management</title>
+<style vid="5">
+  :root {
+    --bg-master: #271418; 
+    --bg-detail: #151515; 
+    --bg-card: #222222; 
+    --bg-card-hover: #2A2A2A;
+    --bg-action-btn: rgba(255, 255, 255, 0.06); 
+    --bg-action-btn-hover: rgba(255, 255, 255, 0.1);
+    
+    --text-primary: #FFFFFF;
+    --text-secondary: rgba(255, 255, 255, 0.45); 
+    --text-tertiary: rgba(255, 255, 255, 0.25);
+    
+    --accent-gradient: linear-gradient(90deg, #4A4DFF 0%, #E91E63 50%, #FF9800 100%); 
+    --badge-bg: #333333; 
+    
+    --radius-lg: 12px;
+    --radius-md: 10px; 
+    --radius-sm: 8px;  
+    
+    --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: var(--font-family);
+    background-color: var(--bg-detail);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-weight: 600; }
+  .text-secondary { color: var(--text-secondary); }
+  .text-small { font-size: 12px; }
+  .text-tabular { font-variant-numeric: tabular-nums; }
+
+  .layout-master {
+    width: 320px;
+    background-color: var(--bg-master);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+
+  .layout-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background-color: var(--bg-detail);
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+  .master-header {
+    padding: 24px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .master-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo-area {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+  }
+
+  .search-input {
+    width: 100%;
+    background-color: var(--bg-action-btn);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s ease;
+  }
+  .search-input:focus {
+    outline: none;
+    background-color: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .search-input::placeholder { color: var(--text-tertiary); }
+
+  .master-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .list-item {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .list-item:hover {
+    background-color: var(--bg-action-btn);
+  }
+
+  .list-item.active {
+    background-color: var(--bg-action-btn-hover);
+  }
+  
+  .list-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 12px;
+    right: 12px;
+    height: 3px;
+    background: var(--accent-gradient);
+    border-radius: 3px 3px 0 0;
+  }
+
+  .list-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .list-item-title {
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  .list-item-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: monospace;
+  }
+
+  .list-item-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.online { background-color: #4CAF50; }
+  .status-dot.offline { background-color: var(--text-tertiary); }
+
+  .detail-header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .breadcrumb {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .detail-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .detail-title h1 {
+    font-size: 24px;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  .detail-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    background-color: var(--badge-bg);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    background-color: var(--bg-card-hover);
+    border-color: rgba(255,255,255,0.15);
+  }
+  .btn.primary {
+    background: var(--text-primary);
+    color: #000;
+    border: none;
+  }
+  .btn.primary:hover {
+    background: #E0E0E0;
+  }
+  .btn.icon-only {
+    padding: 8px;
+  }
+  .btn.danger:hover {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.3);
+    color: #f44336;
+  }
+
+  .detail-content {
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .table-container {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .table-title {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  th {
+    padding: 12px 20px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  td {
+    padding: 14px 20px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background-color: rgba(255,255,255,0.02);
+  }
+
+  .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--bg-action-btn);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .quality-indicator {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 12px;
+  }
+  .quality-bar {
+    width: 3px;
+    background: var(--text-tertiary);
+    border-radius: 1px;
+  }
+  .quality-bar.active { background: #4CAF50; }
+  .quality-bar.warning { background: #FF9800; }
+  .quality-bar.error { background: #f44336; }
+
+  .role-tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-secondary);
+  }
+  .role-tag.host {
+    background: rgba(74, 77, 255, 0.15);
+    color: #8B8DFF;
+  }
+  .role-tag.speaker {
+    background: rgba(233, 30, 99, 0.15);
+    color: #FF5A94;
+  }
+
+</style>
+</head>
+<body vid="6">
+
+  <aside class="layout-master" vid="7">
+    <div class="master-header" vid="8">
+      <div class="master-header-top" vid="9">
+        <div class="logo-area" vid="10">
+          <div class="logo-dot" vid="11"></div>
+          Workspaces
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-tertiary" style="cursor:pointer;" vid="12"><path d="M12 5v14M5 12h14" vid="13"></path></svg>
+      </div>
+      <input type="text" class="search-input" placeholder="Search spaces or users..." vid="14">
+    </div>
+
+    <div class="master-list" vid="15">
+      <div class="list-item active" vid="16">
+        <div class="list-item-header" vid="17">
+          <span class="list-item-title" vid="18">Design Sync</span>
+          <span class="list-item-meta" vid="19">ID-902</span>
+        </div>
+        <div class="list-item-desc" vid="20">
+          <span class="status-dot online" vid="21"></span> Active now • 12 participants
+        </div>
+      </div>
+
+      <div class="list-item" vid="22">
+        <div class="list-item-header" vid="23">
+          <span class="list-item-title" vid="24">Personal Room</span>
+          <span class="list-item-meta" vid="25">ID-104</span>
+        </div>
+        <div class="list-item-desc" vid="26">
+          <span class="status-dot offline" vid="27"></span> Locked • /julia
+        </div>
+      </div>
+
+      <div class="list-item" vid="28">
+        <div class="list-item-header" vid="29">
+          <span class="list-item-title" vid="30">Monthly All-Hands</span>
+          <span class="list-item-meta" vid="31">ID-442</span>
+        </div>
+        <div class="list-item-desc" vid="32">
+          <span class="status-dot offline" vid="33"></span> Scheduled • /acme-all
+        </div>
+      </div>
+
+      <div class="list-item" vid="34">
+        <div class="list-item-header" vid="35">
+          <span class="list-item-title" vid="36">Morning Standup</span>
+          <span class="list-item-meta" vid="37">ID-089</span>
+        </div>
+        <div class="list-item-desc" vid="38">
+          <span class="status-dot offline" vid="39"></span> /standup
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="layout-detail" vid="40">
+    <header class="detail-header" vid="41">
+      <div class="breadcrumb" vid="42">Workspaces / Design Sync / Participants</div>
+      <div class="detail-title-row" vid="43">
+        <div class="detail-title" vid="44">
+          <h1 vid="45">Participants</h1>
+          <div class="detail-subtitle" vid="46">
+            <span class="badge" vid="47">Live</span>
+            <span vid="48">12 Active Users</span>
+            <span vid="49">Session: Design Sync</span>
+          </div>
+        </div>
+        <div class="detail-actions" vid="50">
+          <button class="btn" vid="51">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="52"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" vid="53"></path><circle cx="8.5" cy="7" r="4" vid="54"></circle><line x1="20" y1="8" x2="20" y2="14" vid="55"></line><line x1="23" y1="11" x2="17" y2="11" vid="56"></line></svg>
+            Invite User
+          </button>
+          <button class="btn primary" vid="57">Back to Dashboard</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="detail-content" vid="58">
+      <div class="table-container" vid="59">
+        <div class="table-header" vid="60">
+          <div class="table-title" vid="61">Session Participant Registry</div>
+          <div class="text-tertiary text-small" vid="62">Live update every 2s</div>
+        </div>
+        <table vid="63">
+          <thead vid="64">
+            <tr vid="65">
+              <th vid="66">Participant</th>
+              <th vid="67">Role</th>
+              <th vid="68">Join Time</th>
+              <th vid="69">Quality</th>
+              <th vid="70" style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody vid="71">
+            
+            <tr vid="72">
+              <td vid="73">
+                <div class="user-cell" vid="74">
+                  <div class="user-avatar" style="background: #4A4DFF;" vid="75">JC</div>
+                  <div vid="76">
+                    <div vid="77">Julia C. (You)</div>
+                    <div class="text-small text-tertiary" vid="78">julia.c@acme.com</div>
+                  </div>
+                </div>
+              </td>
+              <td vid="79"><span class="role-tag host" vid="80">Host</span></td>
+              <td class="text-secondary text-tabular" vid="81">09:30 AM</td>
+              <td vid="82">
+                <div class="quality-indicator" vid="83">
+                  <div class="quality-bar active" style="height: 4px;" vid="84"></div>
+                  <div class="quality-bar active" style="height: 6px;" vid="85"></div>
+                  <div class="quality-bar active" style="height: 9px;" vid="86"></div>
+                  <div class="quality-bar active" style="height: 12px;" vid="87"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="88">
+                <button class="btn icon-only" title="Mute All" vid="89"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="90"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" vid="91"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2" vid="92"></path><line x1="12" y1="19" x2="12" y2="23" vid="93"></line><line x1="8" y1="23" x2="16" y2="23" vid="94"></line></svg></button>
+              </td>
+            </tr>
+            
+            <tr vid="95">
+              <td vid="96">
+                <div class="user-cell" vid="97">
+                  <div class="user-avatar" style="background: #E91E63;" vid="98">AC</div>
+                  <div vid="99">
+                    <div vid="100">Alex Chen</div>
+                    <div class="text-small text-tertiary" vid="101">alex.ch@design.co</div>
+                  </div>
+                </div>
+              </td>
+              <td vid="102"><span class="role-tag speaker" vid="103">Speaker</span></td>
+              <td class="text-secondary text-tabular" vid="104">09:45 AM</td>
+              <td vid="105">
+                <div class="quality-indicator" vid="106">
+                  <div class="quality-bar active" style="height: 4px;" vid="107"></div>
+                  <div class="quality-bar active" style="height: 6px;" vid="108"></div>
+                  <div class="quality-bar active" style="height: 9px;" vid="109"></div>
+                  <div class="quality-bar active" style="height: 12px;" vid="110"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="111">
+                <button class="btn icon-only" title="Mute" vid="112"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="113"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" vid="114"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2" vid="115"></path></svg></button>
+                <button class="btn icon-only danger" title="Kick" vid="116"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="117"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" vid="118"></path><line x1="12" y1="2" x2="12" y2="12" vid="119"></line></svg></button>
+              </td>
+            </tr>
+            
+            <tr vid="120">
+              <td vid="121">
+                <div class="user-cell" vid="122">
+                  <div class="user-avatar" style="background: #FF9800;" vid="123">MK</div>
+                  <div vid="124">
+                    <div vid="125">Marcus Kim</div>
+                    <div class="text-small text-tertiary" vid="126">marcus@studio.io</div>
+                  </div>
+                </div>
+              </td>
+              <td vid="127"><span class="role-tag speaker" vid="128">Speaker</span></td>
+              <td class="text-secondary text-tabular" vid="129">10:02 AM</td>
+              <td vid="130">
+                <div class="quality-indicator" vid="131">
+                  <div class="quality-bar active" style="height: 4px;" vid="132"></div>
+                  <div class="quality-bar active" style="height: 6px;" vid="133"></div>
+                  <div class="quality-bar active" style="height: 9px;" vid="134"></div>
+                  <div class="quality-bar" style="height: 12px;" vid="135"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="136">
+                <button class="btn icon-only" title="Mute" vid="137"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="138"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" vid="139"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2" vid="140"></path></svg></button>
+                <button class="btn icon-only danger" title="Kick" vid="141"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="142"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" vid="143"></path><line x1="12" y1="2" x2="12" y2="12" vid="144"></line></svg></button>
+              </td>
+            </tr>
+            
+            <tr vid="145">
+              <td vid="146">
+                <div class="user-cell" vid="147">
+                  <div class="user-avatar" vid="148">SL</div>
+                  <div vid="149">
+                    <div vid="150">Sarah Lee</div>
+                    <div class="text-small text-tertiary" vid="151">sarah@corp.com</div>
+                  </div>
+                </div>
+              </td>
+              <td vid="152"><span class="role-tag" vid="153">Listener</span></td>
+              <td class="text-secondary text-tabular" vid="154">10:15 AM</td>
+              <td vid="155">
+                <div class="quality-indicator" vid="156">
+                  <div class="quality-bar warning" style="height: 4px;" vid="157"></div>
+                  <div class="quality-bar warning" style="height: 6px;" vid="158"></div>
+                  <div class="quality-bar" style="height: 9px;" vid="159"></div>
+                  <div class="quality-bar" style="height: 12px;" vid="160"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="161">
+                <button class="btn icon-only" title="Promote to Speaker" vid="162"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="163"><polyline points="18 15 12 9 6 15" vid="164"></polyline></svg></button>
+                <button class="btn icon-only danger" title="Kick" vid="165"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="166"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" vid="167"></path><line x1="12" y1="2" x2="12" y2="12" vid="168"></line></svg></button>
+              </td>
+            </tr>
+            
+            <tr vid="169">
+              <td vid="170">
+                <div class="user-cell" vid="171">
+                  <div class="user-avatar" vid="172">DW</div>
+                  <div vid="173">David Wright</div>
+                </div>
+              </td>
+              <td vid="174"><span class="role-tag" vid="175">Listener</span></td>
+              <td class="text-secondary text-tabular" vid="176">10:22 AM</td>
+              <td vid="177">
+                <div class="quality-indicator" vid="178">
+                  <div class="quality-bar active" style="height: 4px;" vid="179"></div>
+                  <div class="quality-bar active" style="height: 6px;" vid="180"></div>
+                  <div class="quality-bar active" style="height: 9px;" vid="181"></div>
+                  <div class="quality-bar active" style="height: 12px;" vid="182"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="183">
+                <button class="btn icon-only danger" title="Kick" vid="184"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="185"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" vid="186"></path><line x1="12" y1="2" x2="12" y2="12" vid="187"></line></svg></button>
+              </td>
+            </tr>
+            <tr vid="188">
+              <td vid="189">
+                <div class="user-cell" vid="190">
+                  <div class="user-avatar" vid="191">EN</div>
+                  <div vid="192">Elena N.</div>
+                </div>
+              </td>
+              <td vid="193"><span class="role-tag" vid="194">Listener</span></td>
+              <td class="text-secondary text-tabular" vid="195">10:25 AM</td>
+              <td vid="196">
+                <div class="quality-indicator" vid="197">
+                  <div class="quality-bar error" style="height: 4px;" vid="198"></div>
+                  <div class="quality-bar" style="height: 6px;" vid="199"></div>
+                  <div class="quality-bar" style="height: 9px;" vid="200"></div>
+                  <div class="quality-bar" style="height: 12px;" vid="201"></div>
+                </div>
+              </td>
+              <td style="text-align: right;" vid="202">
+                <button class="btn icon-only danger" title="Kick" vid="203"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" vid="204"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" vid="205"></path><line x1="12" y1="2" x2="12" y2="12" vid="206"></line></svg></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+</body></html>
