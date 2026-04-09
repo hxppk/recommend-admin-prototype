@@ -18,14 +18,13 @@ export function createId(prefix: string) {
 
 export function formatDate(value: string) {
   const date = new Date(value.replace(' ', 'T'))
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(date)
+  if (Number.isNaN(date.getTime())) return value
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
 }
 
 export function productMap(state: AdminState) {
@@ -76,7 +75,7 @@ export function getStrategyProducts(state: AdminState, strategy: Strategy) {
 export function getStrategyReferences(state: AdminState, strategyId: string) {
   return state.combinations
     .filter((combination) => combination.slots.some((slot) => slot.strategyId === strategyId))
-    .map((combination) => combination.name)
+    .map((combination) => ({ id: combination.id, name: combination.name }))
 }
 
 export function getPoolReferences(state: AdminState, poolId: string) {

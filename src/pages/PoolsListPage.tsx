@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Col,
+  Divider,
   Drawer,
   Empty,
   Flex,
@@ -38,11 +39,22 @@ export function PoolsListPage() {
     return () => clearTimeout(timer)
   }, [query])
 
-  const pools = state.pools
+  const allPools = state.pools
     .filter((pool) =>
       pool.name.toLowerCase().includes(debouncedQuery.trim().toLowerCase()),
     )
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  // ALL 全量池置顶
+  const systemPool = allPools.find((pool) => pool.kind === 'SYSTEM')
+  const otherPools = allPools.filter((pool) => pool.kind !== 'SYSTEM')
+
+  // 启用 vs 停用
+  const activePools = otherPools
+    .filter((pool) => pool.status === 'ACTIVE')
+    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
+  const inactivePools = otherPools
+    .filter((pool) => pool.status === 'INACTIVE')
+    .sort((a, b) => new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime())
 
   function doCreate(navigateToDetail: boolean) {
     form.validateFields().then((values) => {
@@ -98,7 +110,7 @@ export function PoolsListPage() {
         </Button>
       </Flex>
 
-      {pools.length === 0 ? (
+      {allPools.length === 0 ? (
         <Card>
           <Empty description="还没有选品池，点击上方按钮创建第一个">
             <Button type="primary" onClick={handleQuickCreate}>
@@ -107,63 +119,35 @@ export function PoolsListPage() {
           </Empty>
         </Card>
       ) : (
-        <Row gutter={[16, 16]}>
-          {pools.map((pool) => {
-            const isSystem = pool.kind === 'SYSTEM'
+        <>
+          {(systemPool || activePools.length > 0) && (
+            <Row gutter={[16, 16]}>
+              {systemPool && (
+                <Col key={systemPool.id} xs={24} sm={24} md={12} lg={12} xl={8}>
+                  <PoolCard pool={systemPool} />
+                </Col>
+              )}
+              {activePools.map((pool) => (
+                <Col key={pool.id} xs={24} sm={24} md={12} lg={12} xl={8}>
+                  <PoolCard pool={pool} />
+                </Col>
+              ))}
+            </Row>
+          )}
 
-            return (
-              <Col key={pool.id} xs={24} sm={24} md={12} lg={12} xl={8}>
-                <Card
-                  hoverable
-                  onClick={() => navigate(`/pools/${pool.id}`)}
-                  title={
-                    <Space>
-                      <span>{pool.name}</span>
-                      {isSystem && <Tag color="blue">系统</Tag>}
-                    </Space>
-                  }
-                >
-                  <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
-                    <Tag color={pool.status === 'ACTIVE' ? 'success' : 'default'}>
-                      {pool.status === 'ACTIVE' ? '启用' : '停用'}
-                    </Tag>
-                  </Flex>
-
-                  <Flex justify="space-between" style={{ marginBottom: 8 }}>
-                    <Text type="secondary">商品数</Text>
-                    <Text strong>{pool.productIds.length}</Text>
-                  </Flex>
-                  <Flex justify="space-between" style={{ marginBottom: 12 }}>
-                    <Text type="secondary">被使用</Text>
-                    <Text strong>{state.strategies.filter((s) => s.poolId === pool.id).length}</Text>
-                  </Flex>
-
-                  <Paragraph
-                    type="secondary"
-                    ellipsis={{ rows: 2 }}
-                    style={{ marginBottom: 12, fontSize: 13 }}
-                  >
-                    {pool.description ? (
-                      pool.description
-                    ) : (
-                      <Text type="secondary" italic>暂无描述</Text>
-                    )}
-                  </Paragraph>
-
-                  <div style={{ fontSize: 12, lineHeight: '20px' }}>
-                    <Text type="secondary">
-                      创建：{pool.createdBy} · {formatDate(pool.createdAt)}
-                    </Text>
-                    <br />
-                    <Text type="secondary">
-                      最新维护：{pool.updatedAt ? `${pool.updatedBy} · ${formatDate(pool.updatedAt)}` : '-'}
-                    </Text>
-                  </div>
-                </Card>
-              </Col>
-            )
-          })}
-        </Row>
+          {inactivePools.length > 0 && (
+            <>
+              <Divider orientation="left">已停用</Divider>
+              <Row gutter={[16, 16]}>
+                {inactivePools.map((pool) => (
+                  <Col key={pool.id} xs={24} sm={24} md={12} lg={12} xl={8}>
+                    <PoolCard pool={pool} disabled />
+                  </Col>
+                ))}
+              </Row>
+            </>
+          )}
+        </>
       )}
 
       <Drawer
@@ -217,5 +201,74 @@ export function PoolsListPage() {
         </Form>
       </Drawer>
     </Flex>
+  )
+}
+
+function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['state']['pools'][number]; disabled?: boolean }) {
+  const navigate = useNavigate()
+  const { state } = useAdminStore()
+  const isSystem = pool.kind === 'SYSTEM'
+  const [hovered, setHovered] = useState(false)
+
+  const cardStyle: React.CSSProperties = disabled
+    ? {
+        background: '#fafafa',
+        border: `1px solid ${hovered ? '#d9d9d9' : '#f0f0f0'}`,
+        cursor: 'pointer',
+        ...(hovered && { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }),
+      }
+    : undefined
+
+  return (
+    <Card
+      hoverable={!disabled}
+      onClick={() => navigate(`/pools/${pool.id}`)}
+      style={cardStyle}
+      onMouseEnter={() => disabled && setHovered(true)}
+      onMouseLeave={() => disabled && setHovered(false)}
+      title={
+        <Space>
+          <span>{pool.name}</span>
+          {isSystem && <Tag color="blue">系统</Tag>}
+        </Space>
+      }
+    >
+      <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+        <Tag color={pool.status === 'ACTIVE' ? 'success' : 'default'}>
+          {pool.status === 'ACTIVE' ? '启用' : '停用'}
+        </Tag>
+      </Flex>
+
+      <Flex justify="space-between" style={{ marginBottom: 8 }}>
+        <Text type="secondary">商品数</Text>
+        <Text strong>{pool.productIds.length}</Text>
+      </Flex>
+      <Flex justify="space-between" style={{ marginBottom: 12 }}>
+        <Text type="secondary">被使用</Text>
+        <Text strong>{state.strategies.filter((s) => s.poolId === pool.id).length}</Text>
+      </Flex>
+
+      <Paragraph
+        type="secondary"
+        ellipsis={{ rows: 2 }}
+        style={{ marginBottom: 12, fontSize: 13 }}
+      >
+        {pool.description ? (
+          pool.description
+        ) : (
+          <Text type="secondary" italic>暂无描述</Text>
+        )}
+      </Paragraph>
+
+      <div style={{ fontSize: 12, lineHeight: '20px' }}>
+        <Text type="secondary">
+          创建：{pool.createdBy} · {formatDate(pool.createdAt)}
+        </Text>
+        <br />
+        <Text type="secondary">
+          最新维护：{pool.updatedAt ? `${pool.updatedBy} · ${formatDate(pool.updatedAt)}` : '-'}
+        </Text>
+      </div>
+    </Card>
   )
 }

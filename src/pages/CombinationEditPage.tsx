@@ -7,56 +7,75 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import {
+  arrayMove,
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { createId, estimateCombinationCoverage, getPlanReferences, getStrategyProducts } from '../lib/domain'
-import { CURRENT_USER, useAdminStore } from '../lib/store'
-import type { Combination, CombinationSlot } from '../lib/types'
+import {
+  ArrowLeftOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  HolderOutlined,
+  MoreOutlined,
+  PlusOutlined,
+} from '@ant-design/icons'
 import {
   Button,
   Card,
   Col,
-  Empty,
+  Dropdown,
   Flex,
-  Image,
-  Input,
   InputNumber,
-  Result,
+  Modal,
   Row,
   Select,
   Space,
-  Statistic,
-  Switch,
   Tag,
-  Tooltip,
   Typography,
 } from 'antd'
-import {
-  DeleteOutlined,
-  EditOutlined,
-  HolderOutlined,
-  PlusOutlined,
-  SaveOutlined,
-} from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { createId, estimateCombinationCoverage, getPlanReferences } from '../lib/domain'
+import { CURRENT_USER, useAdminStore } from '../lib/store'
+import type { Combination, CombinationSlot } from '../lib/types'
 
-const { Text } = Typography
+const GROUP_COLORS = ['#1677ff', '#fa8c16', '#52c41a', '#722ed1', '#eb2f96', '#13c2c2']
 
 export function CombinationEditPage() {
   const navigate = useNavigate()
   const { id = '' } = useParams()
-  const { state, updateCombination } = useAdminStore()
+  const { state, updateCombination, deleteCombination } = useAdminStore()
   const combination = state.combinations.find((item) => item.id === id)
   const [draft, setDraft] = useState<Combination | null>(combination ?? null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const isOwner = combination?.createdBy === CURRENT_USER
   const [isEditing, setIsEditing] = useState(isOwner)
   const readonly = !isEditing
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  )
+
+
+  // 策略分组：统计每个策略被哪些 slot 使用
+  const strategyGroups = useMemo(() => {
+    const groups = new Map<string | null, number[]>()
+    draft.slots.forEach((slot, index) => {
+      const key = slot.strategyId
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(index)
+    })
+    // 只为出现 2 次以上的策略分配颜色
+    const colorMap = new Map<string, string>()
+    let ci = 0
+    for (const [strategyId, indexes] of groups) {
+      if (!strategyId || indexes.length < 2) continue
+      colorMap.set(strategyId, GROUP_COLORS[ci % GROUP_COLORS.length])
+      ci += 1
+    }
+    return { indexes: groups, colors: colorMap }
+  }, [draft.slots])
 
   useEffect(() => {
     setDraft(combination ?? null)
@@ -64,157 +83,161 @@ export function CombinationEditPage() {
 
   if (!combination || !draft) {
     return (
-      <Result
-        status="404"
-        title="组合不存在"
-        subTitle="请返回组合列表重新选择。"
-        extra={
-          <Button type="primary" onClick={() => navigate('/combinations')}>
-            返回列表
-          </Button>
-        }
-      />
+      <Empty description="组合不存在，请返回组合列表重新选择。">
+        <Button type="primary" onClick={() => navigate('/combinations')}>返回列表</Button>
+      </Empty>
     )
   }
 
-  const currentDraft = draft
-
-  const planRefs = getPlanReferences(state, currentDraft.id)
-  const assignedCount = currentDraft.slots.filter((slot) => slot.strategyId).length
-  const coverage = estimateCombinationCoverage(state, currentDraft)
-  const previewProducts = currentDraft.slots
-    .map((slot) => state.strategies.find((item) => item.id === slot.strategyId))
-    .flatMap((strategy) => (strategy ? getStrategyProducts(state, strategy).slice(0, 1) : []))
-
-  function handleSlotChange(slotId: string, patch: Partial<CombinationSlot>) {
-    setDraft((current) => current
-      ? {
-          ...current,
-          slots: current.slots.map((slot) => (slot.id === slotId ? { ...slot, ...patch } : slot)),
-        }
-      : current)
-  }
+  const planRefs = getPlanReferences(state, draft.id)
+  const coverage = estimateCombinationCoverage(state, draft)
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = currentDraft.slots.findIndex((slot) => slot.id === active.id)
-    const newIndex = currentDraft.slots.findIndex((slot) => slot.id === over.id)
-    setDraft({ ...currentDraft, slots: arrayMove(currentDraft.slots, oldIndex, newIndex) })
+    const oldIndex = draft.slots.findIndex((slot) => slot.id === active.id)
+    const newIndex = draft.slots.findIndex((slot) => slot.id === over.id)
+    setDraft({ ...draft, slots: arrayMove(draft.slots, oldIndex, newIndex) })
+  }
+
+  function handleSlotChange(slotId: string, patch: Partial<CombinationSlot>) {
+    setDraft((current) => current
+      ? { ...current, slots: current.slots.map((slot) => (slot.id === slotId ? { ...slot, ...patch } : slot)) }
+      : current)
+  }
+
+  function handleRemoveSlot(slotId: string) {
+    if (draft.slots.length <= 1) return
+    setDraft({ ...draft, slots: draft.slots.filter((s) => s.id !== slotId) })
+  }
+
+  function handleSave() {
+    updateCombination(draft.id, draft)
+    navigate('/combinations')
+  }
+
+  function handleCancel() {
+    setDraft(combination)
+    setIsEditing(false)
+  }
+
+  function handleDelete() {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确认删除策略组合「${draft.name}」吗？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => {
+        deleteCombination(draft.id)
+        navigate('/combinations')
+      },
+    })
+  }
+
+  function handleToggleStatus() {
+    updateCombination(draft.id, {
+      ...draft,
+      status: draft.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+    })
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      {!isEditing && (
-        <Flex justify="flex-end">
-          {isOwner ? (
-            <Button icon={<EditOutlined />} onClick={() => setIsEditing(true)}>
-              进入编辑
-            </Button>
-          ) : (
-            <Tooltip title="仅创建人可编辑">
-              <Button icon={<EditOutlined />} disabled>
-                进入编辑
-              </Button>
-            </Tooltip>
-          )}
+    <Flex vertical style={{ gap: 24 }}>
+      {/* 页面头部 */}
+      <Flex align="center" justify="space-between">
+        <Flex align="center" gap={12}>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/combinations')} />
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {isEditing ? draft.name : combination.name}
+          </Typography.Title>
         </Flex>
-      )}
+        <Space size={8}>
+          {isEditing
+            ? (
+                <>
+                  <Button onClick={handleCancel}>取消</Button>
+                  <Button type="primary" onClick={handleSave}>保存</Button>
+                </>
+              )
+            : (
+                <>
+                  {isOwner ? (
+                    <>
+                      <Button icon={<EditOutlined />} onClick={() => setIsEditing(true)}>编辑</Button>
+                      <Button onClick={handleToggleStatus}>{draft.status === 'ACTIVE' ? '停用' : '启用'}</Button>
+                      <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>删除</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button icon={<EditOutlined />} disabled>编辑</Button>
+                      <Button disabled>{draft.status === 'ACTIVE' ? '停用' : '启用'}</Button>
+                    </>
+                  )}
+                </>
+              )
+          }
+        </Space>
+      </Flex>
 
-      <Row gutter={16}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="总坑位数" value={currentDraft.slots.length} suffix="/ 10" />
-            <Text type="secondary" style={{ fontSize: 12 }}>最多支持 10 个坑位</Text>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="已绑策略数" value={assignedCount} />
-            <Text type="secondary" style={{ fontSize: 12 }}>{currentDraft.slots.length - assignedCount} 个待配置</Text>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="关联投放计划数" value={planRefs.length} />
-            <Text type="secondary" style={{ fontSize: 12 }}>计划变更将同步生效</Text>
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="预计覆盖商品数" value={coverage} />
-            <Text type="secondary" style={{ fontSize: 12 }}>按选品池去重估算</Text>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={16}>
-        <Col span={17}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Row gutter={24}>
+        {/* 左侧：坑位配置 + 全局策略 */}
+        <Col span={16}>
+          <Flex vertical gap={24}>
+            {/* 坑位配置区 */}
             <Card
               title={
                 <Flex align="center" gap={12}>
-                  <Input
-                    value={currentDraft.name}
-                    disabled={readonly}
-                    onChange={(event) => setDraft({ ...currentDraft, name: event.target.value })}
-                    style={{ width: 300 }}
-                  />
-                  <Tag color={currentDraft.status === 'ACTIVE' ? 'green' : 'default'}>
-                    {currentDraft.status === 'ACTIVE' ? '启用中' : '已停用'}
-                  </Tag>
+                  <span>坑位配置（{draft.slots.length}/10）</span>
+                  <Typography.Text type="secondary">覆盖 {coverage} 件商品</Typography.Text>
                 </Flex>
               }
-              extra={<Text type="secondary">拖拽调整坑位顺序，右侧联动预览。</Text>}
             >
-              <Flex
-                style={{
-                  padding: '8px 0',
-                  borderBottom: '1px solid #f0f0f0',
-                  marginBottom: 8,
-                }}
-                gap={12}
-                align="center"
-              >
-                <div style={{ width: 32 }} />
-                <Text strong style={{ width: 60 }}>坑位序号</Text>
-                <Text strong style={{ flex: 1 }}>绑定策略</Text>
-                <Text strong style={{ width: 120 }}>选品池来源</Text>
-                <Text strong style={{ width: 140 }}>预览商品</Text>
-                <Text strong style={{ width: 60, textAlign: 'center' }}>操作</Text>
-              </Flex>
-
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={currentDraft.slots.map((slot) => slot.id)} strategy={verticalListSortingStrategy}>
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                    {currentDraft.slots.map((slot, index) => (
-                      <SlotRow
-                        key={slot.id}
-                        index={index}
-                        slot={slot}
-                        onChange={handleSlotChange}
-                        onRemove={() =>
-                          setDraft({
-                            ...currentDraft,
-                            slots: currentDraft.slots.filter((item) => item.id !== slot.id),
-                          })
-                        }
-                        disabledRemove={currentDraft.slots.length === 1}
-                      />
-                    ))}
-                  </Space>
-                </SortableContext>
-              </DndContext>
-
-              <Flex justify="center" style={{ marginTop: 16 }}>
+              <Flex vertical gap={16}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={draft.slots.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                    {draft.slots.map((slot, index) => {
+                      const groupColor = slot.strategyId
+                        ? strategyGroups.colors.get(slot.strategyId)
+                        : undefined
+                      const sameStrategySlots = slot.strategyId
+                        ? strategyGroups.indexes.get(slot.strategyId) ?? []
+                        : []
+                      const isFirst = sameStrategySlots[0] === index
+                      const posInGroup = sameStrategySlots.findIndex((i) => i === index)
+                      const prevIndex = posInGroup > 0 ? sameStrategySlots[posInGroup - 1] : undefined
+                      return (
+                        <div key={slot.id}>
+                          <SlotCard
+                            index={index}
+                            slot={slot}
+                            readonly={readonly}
+                            groupColor={groupColor}
+                            continuation={!isFirst && sameStrategySlots.length > 1
+                              ? {
+                                  prevIndex,
+                                  displayRank: posInGroup + 1,
+                                  color: groupColor ?? '#1677ff',
+                                }
+                              : undefined}
+                            onChange={(patch) => handleSlotChange(slot.id, patch)}
+                            onRemove={() => handleRemoveSlot(slot.id)}
+                            disabledRemove={draft.slots.length <= 1}
+                          />
+                        </div>
+                      )
+                    })}
+                  </SortableContext>
+                </DndContext>
                 <Button
                   type="dashed"
+                  block
                   icon={<PlusOutlined />}
-                  disabled={currentDraft.slots.length >= 10}
+                  disabled={draft.slots.length >= 10 || readonly}
                   onClick={() =>
                     setDraft({
-                      ...currentDraft,
-                      slots: [...currentDraft.slots, { id: createId('slot'), strategyId: null }],
+                      ...draft,
+                      slots: [...draft.slots, { id: createId('slot'), strategyId: null }],
                     })
                   }
                 >
@@ -223,216 +246,182 @@ export function CombinationEditPage() {
               </Flex>
             </Card>
 
-            <Card title="推荐效果预览">
-              <Flex gap={24} wrap>
-                <Space>
-                  <Text>同品类最多连续展示数：</Text>
+            {/* 全局策略区 */}
+            <Card title="全局策略">
+              <Flex vertical gap={16}>
+                <Flex align="center" gap={8}>
+                  <Typography.Text>同品类最多连续展示数：</Typography.Text>
                   <InputNumber
-                    value={currentDraft.categoryLimit}
+                    value={draft.categoryLimit ?? undefined}
                     placeholder="不限制"
                     min={1}
                     max={10}
-                    onChange={(value) =>
-                      setDraft({
-                        ...currentDraft,
-                        categoryLimit: value ?? null,
-                      })
-                    }
-                    style={{ width: 120 }}
+                    disabled={readonly}
+                    onChange={(value) => setDraft({ ...draft, categoryLimit: value ?? null })}
+                    style={{ width: 100 }}
                   />
-                </Space>
-                <Space>
-                  <Text>Session 内去重：</Text>
-                  <Switch checked={currentDraft.sessionDedup} disabled />
-                  <Text type="secondary">默认开启，不可关闭</Text>
-                </Space>
-              </Flex>
-
-              <Card
-                style={{
-                  maxWidth: 375,
-                  margin: '24px auto 0',
-                  background: '#fafafa',
-                }}
-              >
-                <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
-                  <Text type="secondary">点单页推荐位</Text>
-                  <Text strong>{currentDraft.name}</Text>
                 </Flex>
-                <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                  {previewProducts.length === 0 ? (
-                    <Empty description="暂无预览商品" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                  ) : (
-                    previewProducts.map((product, index) => (
-                      <Card key={`${product.id}-${index}`} size="small">
-                        <Flex gap={12} align="center">
-                          <Tag color="blue">#{index + 1}</Tag>
-                          <Image
-                            src={`https://placehold.co/40x40/${product.accent.replace('#', '')}/white?text=${encodeURIComponent(product.name.charAt(0))}`}
-                            width={40}
-                            height={40}
-                            preview={false}
-                            fallback="https://placehold.co/40x40/eeeeee/999999?text=IMG"
-                            style={{ borderRadius: 4, flexShrink: 0 }}
-                          />
-                          <Space direction="vertical" size={0} style={{ flex: 1, minWidth: 0 }}>
-                            <Text ellipsis strong>{product.name}</Text>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              ¥{product.price}
-                            </Text>
-                          </Space>
-                        </Flex>
-                      </Card>
-                    ))
-                  )}
-                </Space>
-              </Card>
+                <Flex align="center" gap={8}>
+                  <Typography.Text>Session 内去重</Typography.Text>
+                  <Tag color="success">已开启</Tag>
+                  <Typography.Text type="secondary">（系统默认开启，不可关闭）</Typography.Text>
+                </Flex>
+              </Flex>
             </Card>
-          </Space>
+          </Flex>
         </Col>
 
-        <Col span={7}>
-          <Card title="关联投放计划">
-            {planRefs.length ? (
-              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        {/* 右侧：关联投放计划 */}
+        <Col span={8}>
+          <Card title={`关联投放计划（${planRefs.length}）`}>
+            {planRefs.length === 0 ? (
+              <Empty description="暂无关联投放计划">
+                <Typography.Text type="secondary">先保存组合，再在投放计划中绑定。</Typography.Text>
+              </Empty>
+            ) : (
+              <Flex vertical gap={12}>
                 {planRefs.map((plan) => (
                   <Card key={plan.id} size="small">
                     <Flex justify="space-between" align="start">
-                      <Space direction="vertical" size={0}>
-                        <Text strong>{plan.name}</Text>
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          {plan.startAt.replace('T', ' ')} - {plan.endAt.replace('T', ' ')}
-                        </Text>
-                      </Space>
-                      <Tag
-                        color={
-                          plan.status === 'PUBLISHED'
-                            ? 'green'
-                            : plan.status === 'PAUSED'
-                              ? 'orange'
-                              : 'default'
-                        }
-                      >
-                        {plan.status}
+                      <Flex vertical gap={4}>
+                        <Typography.Text strong>{plan.name}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {formatDateRange(plan.startAt, plan.endAt)}
+                        </Typography.Text>
+                      </Flex>
+                      <Tag color={plan.status === 'PUBLISHED' ? 'success' : 'default'}>
+                        {plan.status === 'PUBLISHED' ? '已发布' : plan.status === 'ENDED' ? '已结束' : plan.status === 'PAUSED' ? '已暂停' : plan.status === 'DRAFT' ? '草稿' : plan.status}
                       </Tag>
                     </Flex>
                   </Card>
                 ))}
-              </Space>
-            ) : (
-              <Empty description="暂无关联投放计划">
-                <Text type="secondary">先保存组合，再在投放计划中绑定。</Text>
-              </Empty>
+              </Flex>
             )}
           </Card>
         </Col>
       </Row>
-
-      {!readonly && (
-        <Flex justify="flex-end" gap={12}>
-          <Button onClick={() => navigate('/combinations')}>取消</Button>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={() => {
-              updateCombination(currentDraft.id, currentDraft)
-              navigate('/combinations')
-            }}
-          >
-            保存
-          </Button>
-        </Flex>
-      )}
-
-    </Space>
+    </Flex>
   )
 }
 
-function SlotRow({
-  slot,
+function formatDateRange(start: string, end: string) {
+  const s = new Date(start.replace(' ', 'T'))
+  const e = new Date(end.replace(' ', 'T'))
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return Number.isNaN(s.getTime()) ? `${start} - ${end}` : `${fmt(s)} ~ ${fmt(e)}`
+}
+
+function SlotCard({
   index,
+  slot,
+  readonly,
+  groupColor,
+  continuation,
   onChange,
   onRemove,
   disabledRemove,
 }: {
-  slot: CombinationSlot
   index: number
-  onChange: (slotId: string, patch: Partial<CombinationSlot>) => void
+  slot: CombinationSlot
+  readonly: boolean
+  groupColor?: string
+  continuation?: { prevIndex: number; displayRank: number; color: string }
+  onChange: (patch: Partial<CombinationSlot>) => void
   onRemove: () => void
   disabledRemove: boolean
 }) {
   const { state } = useAdminStore()
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: slot.id,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slot.id })
   const strategy = state.strategies.find((item) => item.id === slot.strategyId)
   const pool = state.pools.find((item) => item.id === strategy?.poolId)
-  const preview = strategy ? getStrategyProducts(state, strategy)[0] : null
 
   return (
     <div
       ref={setNodeRef}
       style={{
-        transform: CSS.Transform.toString(transform),
+        transform: transform ? CSS.Translate.toString(transform) : undefined,
         transition,
         opacity: isDragging ? 0.5 : 1,
         background: isDragging ? '#fafafa' : undefined,
-        borderRadius: 4,
+        position: 'relative',
       }}
     >
-      <Flex gap={12} align="center" style={{ padding: '8px 0' }}>
-        <Button
-          type="text"
-          icon={<HolderOutlined />}
-          size="small"
-          style={{ cursor: 'grab' }}
-          {...attributes}
-          {...listeners}
-        />
-        <Text strong style={{ width: 60 }}>#{index + 1}</Text>
-        <Select
-          value={slot.strategyId ?? undefined}
-          placeholder="请选择策略"
-          onChange={(value) => onChange(slot.id, { strategyId: value || null })}
-          allowClear
-          style={{ flex: 1 }}
-          options={state.strategies.map((item) => ({
-            value: item.id,
-            label: `${item.name} · ${item.mode}`,
-          }))}
-        />
-        <Text type="secondary" style={{ width: 120 }} ellipsis>
-          {pool?.name ?? '—'}
-        </Text>
-        <div style={{ width: 140 }}>
-          {preview ? (
-            <Flex gap={8} align="center">
-              <Image
-                src={`https://placehold.co/32x32/${preview.accent.replace('#', '')}/white?text=${encodeURIComponent(preview.name.charAt(0))}`}
-                width={32}
-                height={32}
-                preview={false}
-                fallback="https://placehold.co/32x32/eeeeee/999999?text=IMG"
-                style={{ borderRadius: 4, flexShrink: 0 }}
-              />
-              <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
-                <Text ellipsis style={{ fontSize: 12 }}>{preview.name}</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>{preview.spuId}</Text>
-              </Space>
-            </Flex>
-          ) : (
-            <Text type="secondary">暂无预览</Text>
+      {/* 左侧色条分组 */}
+      {groupColor && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          top: 8,
+          bottom: 8,
+          width: 4,
+          borderRadius: 2,
+          background: groupColor,
+        }} />
+      )}
+      <Card size="small" bodyStyle={{ padding: '12px 16px' }}>
+        <Flex align="center" gap={12}>
+          {/* 拖拽手柄 */}
+          {!readonly && (
+            <span
+              {...attributes}
+              {...listeners}
+              style={{ cursor: 'grab', color: '#bfbfbf', fontSize: 16, flexShrink: 0 }}
+            >
+              <HolderOutlined />
+            </span>
           )}
-        </div>
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          disabled={disabledRemove}
-          onClick={onRemove}
-          style={{ width: 60, textAlign: 'center' }}
-        />
-      </Flex>
+          {/* 序号 */}
+          <Tag style={{ fontSize: 14, fontWeight: 600, minWidth: 48, textAlign: 'center', margin: 0 }}>
+            POS {index + 1}
+          </Tag>
+          {/* 策略选择 + 选品来源 + 接续说明 */}
+          <Flex vertical gap={4} style={{ flex: 1, minWidth: 0 }}>
+            <Select
+              value={slot.strategyId ?? undefined}
+              placeholder="请选择策略"
+              onChange={(value) => onChange({ strategyId: value || null })}
+              allowClear
+              disabled={readonly}
+              style={{ width: '100%' }}
+              options={state.strategies.map((item) => ({
+                value: item.id,
+                label: `${item.name} · ${item.mode}`,
+              }))}
+            />
+            {pool && (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                选品来源：{pool.name}
+              </Typography.Text>
+            )}
+            {/* 接续说明（非起始位） */}
+            {continuation && (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                <span style={{ color: continuation.color, marginRight: 4 }}>●</span>
+                接续 POS {continuation.prevIndex + 1}，展示第 {continuation.displayRank} 名
+              </Typography.Text>
+            )}
+          </Flex>
+          {/* 更多菜单 */}
+          {!readonly && (
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'delete',
+                    label: <span style={{ color: '#ff4d4f' }}>删除坑位</span>,
+                    icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                    disabled: disabledRemove,
+                    onClick: onRemove,
+                  },
+                ],
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} />
+            </Dropdown>
+          )}
+        </Flex>
+      </Card>
     </div>
   )
 }

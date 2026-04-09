@@ -123,12 +123,12 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
     },
     createStrategy() {
       const id = createId('strategy')
-      const defaultPool = state.pools.find((item) => item.kind === 'CUSTOM') ?? state.pools[0]
+      const allPool = state.pools.find((item) => item.id === 'pool-all') ?? state.pools[0]
       const next: Strategy = {
         id,
-        name: `新建策略 ${state.strategies.length}`,
+        name: '',
         description: '',
-        poolId: defaultPool.id,
+        poolId: allPool.id,
         mode: 'HOT',
         status: 'ACTIVE',
         sortDimension: 'SALES_COUNT',

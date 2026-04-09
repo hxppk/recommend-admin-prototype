@@ -1,30 +1,20 @@
 import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import {
   ArrowLeftOutlined,
+  CheckOutlined,
   DeleteOutlined,
   EditOutlined,
   FireOutlined,
   HolderOutlined,
   PlusOutlined,
   RocketOutlined,
+  SearchOutlined,
   ToolOutlined,
+  UpOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import {
   Alert,
+  Avatar,
   Button,
   Card,
   Col,
@@ -34,7 +24,6 @@ import {
   Input,
   List,
   Modal,
-  Radio,
   Result,
   Row,
   Select,
@@ -42,14 +31,32 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Radio,
+  message,
 } from 'antd'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useEffect, useState, useMemo } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { detectStrategyCycle, getPoolProducts, productMap } from '../lib/domain'
 import { CURRENT_USER, useAdminStore } from '../lib/store'
 import type { Product, Strategy } from '../lib/types'
 
-const modeMeta: Record<Strategy['mode'], { title: string; desc: string; icon: React.ReactNode; tag: string; color: string }> = {
+const modeMeta: Record<Strategy['mode'], { title: string; desc: string; icon: React.ReactNode; tag: string; color?: string }> = {
   HOT: {
     title: '热销排行',
     desc: '按销量 / 交易额自动排序',
@@ -69,7 +76,6 @@ const modeMeta: Record<Strategy['mode'], { title: string; desc: string; icon: Re
     desc: '人工拖拽确定顺序',
     icon: <ToolOutlined />,
     tag: 'MANUAL',
-    color: 'purple',
   },
 }
 
@@ -84,25 +90,124 @@ const timeWindowOptions = [
   { label: '近 30 天', value: '30D' },
 ]
 
+// 表单数据类型
+interface StrategyFormValues {
+  name: string
+  description: string
+  poolId: string
+  mode: Strategy['mode']
+  sortDimension?: 'SALES_COUNT' | 'SALES_AMOUNT'
+  timeWindow?: '7D' | '14D' | '30D'
+  fallbackStrategyId?: string
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
 export function StrategyEditPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id = '' } = useParams()
   const { state, updateStrategy, deleteStrategy } = useAdminStore()
   const strategy = state.strategies.find((item) => item.id === id)
-  const [draft, setDraft] = useState<Strategy | null>(strategy ?? null)
-  const [query, setQuery] = useState('')
   const isSystem = strategy?.kind === 'SYSTEM'
   const isOwner = strategy?.createdBy === CURRENT_USER
-  const [isEditing, setIsEditing] = useState(false)
+  const isNew = (location.state as { isNew?: boolean })?.isNew ?? false
+  const [isEditing, setIsEditing] = useState(isNew)
+
+  // 使用 Ant Design Form hook
+  const [form] = Form.useForm<StrategyFormValues>()
   const readonly = !isEditing
 
+  // 追踪表单字段变化（用于条件渲染和依赖逻辑）
+  const [mode, setMode] = useState<Strategy['mode'] | null>(strategy?.mode ?? null)
+  const [selectedPoolId, setSelectedPoolId] = useState(strategy?.poolId ?? '')
+  const [fallbackId, setFallbackId] = useState<string | undefined>(strategy?.fallbackStrategyId || undefined)
+
+  // 构建表单初始值
+  const formInitialValues: StrategyFormValues = useMemo(() => {
+    if (!strategy) return {
+      name: '',
+      description: '',
+      poolId: '',
+      mode: 'HOT' as const,
+      status: 'ACTIVE' as const,
+    }
+    return {
+      name: strategy.name,
+      description: strategy.description || '',
+      poolId: strategy.poolId,
+      mode: strategy.mode,
+      sortDimension: strategy.sortDimension,
+      timeWindow: strategy.timeWindow,
+      fallbackStrategyId: strategy.fallbackStrategyId || undefined,
+      status: strategy.status,
+    }
+  }, [strategy?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 初始化模式和选品池
   useEffect(() => {
-    setDraft(strategy ?? null)
-  }, [strategy])
+    if (strategy) {
+      setMode(strategy.mode)
+      setSelectedPoolId(strategy.poolId)
+      setFallbackId(strategy.fallbackStrategyId || undefined)
+    }
+  }, [strategy?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  // 表单挂载后填充值（useLayoutEffect 确保在 paint 前完成）
+  useEffect(() => {
+    if (strategy) {
+      form.setFieldsValue({
+        name: strategy.name,
+        description: strategy.description || '',
+        poolId: strategy.poolId,
+        mode: strategy.mode,
+        sortDimension: strategy.sortDimension,
+        timeWindow: strategy.timeWindow,
+        fallbackStrategyId: strategy.fallbackStrategyId || undefined,
+        status: strategy.status,
+      })
+    }
+  }, [form, formInitialValues]) // 依赖 formInitialValues 确保策略切换时重新填充
 
-  if (!strategy || !draft) {
+  // 实时检测循环引用
+  const cycleError = useMemo(() => {
+    if (!strategy || !fallbackId) return null
+    const tempDraft: Strategy = {
+      ...strategy,
+      fallbackStrategyId: fallbackId,
+    }
+    const tempState = {
+      ...state,
+      strategies: state.strategies.map((item) =>
+        item.id === strategy.id ? tempDraft : item,
+      ),
+    }
+    return detectStrategyCycle(tempState, strategy.id, tempDraft.fallbackStrategyId)
+  }, [state, strategy, fallbackId])
+
+  // 获取选品池商品（用于 MANUAL 模式）
+  const productsById = productMap(state)
+  const poolProducts = getPoolProducts(state, selectedPoolId)
+  const [query, setQuery] = useState('')
+
+  // MANUAL 模式：已选商品列表（使用本地 state 管理）
+  const [manualProductIds, setManualProductIds] = useState<string[]>(strategy?.manualProductIds || [])
+  useEffect(() => {
+    if (strategy) {
+      setManualProductIds(strategy.manualProductIds)
+    }
+  }, [strategy?.id]) // 仅在策略 ID 变化时重置
+
+  const availableProducts = poolProducts.filter(
+    (product) =>
+      !manualProductIds.includes(product.id) &&
+      (product.name.includes(query) || product.spuId.includes(query)),
+  )
+
+  const selectedProducts = manualProductIds
+    .map((productId) => productsById[productId])
+    .filter((product): product is typeof productsById[string] => Boolean(product))
+
+  if (!strategy) {
     return (
       <Result
         status="404"
@@ -117,51 +222,47 @@ export function StrategyEditPage() {
     )
   }
 
-  const currentDraft = draft
-
-  const tempState = {
-    ...state,
-    strategies: state.strategies.map((item) => (item.id === currentDraft.id ? currentDraft : item)),
-  }
-  const cycleError = detectStrategyCycle(tempState, currentDraft.id, currentDraft.fallbackStrategyId)
-  const productsById = productMap(state)
-  const poolProducts = getPoolProducts(state, currentDraft.poolId)
-  const availableProducts = poolProducts.filter(
-    (product) =>
-      !currentDraft.manualProductIds.includes(product.id) &&
-      (product.name.includes(query) || product.spuId.includes(query)),
-  )
-  const selectedProducts = currentDraft.manualProductIds
-    .map((productId) => productsById[productId])
-    .filter((product): product is Product => Boolean(product))
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = currentDraft.manualProductIds.indexOf(String(active.id))
-    const newIndex = currentDraft.manualProductIds.indexOf(String(over.id))
-    setDraft((current) =>
-      current
-        ? { ...current, manualProductIds: arrayMove(current.manualProductIds, oldIndex, newIndex) }
-        : current,
-    )
-  }
-
   function handleSave() {
-    updateStrategy(currentDraft.id, currentDraft)
-    setIsEditing(false)
+    form
+      .validateFields()
+      .then((values) => {
+        const updated: Strategy = {
+          ...strategy!,
+          name: values.name,
+          description: values.description || '',
+          poolId: values.poolId,
+          mode: values.mode,
+          sortDimension: values.sortDimension || 'SALES_COUNT',
+          timeWindow: values.timeWindow || '7D',
+          fallbackStrategyId: values.fallbackStrategyId || null,
+          manualProductIds: manualProductIds,
+          filterUnavailable: true,
+        }
+        updateStrategy(strategy!.id, updated)
+        message.success('保存成功')
+        navigate('/strategies')
+      })
+      .catch((info) => {
+        console.log('验证失败:', info)
+      })
   }
 
   function handleCancel() {
-    setDraft(strategy ?? null)
+    if (isNew) {
+      deleteStrategy(strategy!.id)
+      navigate('/strategies')
+      return
+    }
+    form.resetFields()
+    setManualProductIds(strategy?.manualProductIds || [])
     setIsEditing(false)
   }
 
   function handleToggleStatus() {
     if (!strategy) return
     updateStrategy(strategy.id, {
-      ...strategy,
-      status: strategy.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+      ...strategy!,
+      status: strategy!.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
     })
   }
 
@@ -181,59 +282,59 @@ export function StrategyEditPage() {
 
   const isActive = strategy.status === 'ACTIVE'
 
-  function renderHeaderActions() {
-    if (isSystem) return null
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
-    if (isEditing) {
-      return (
-        <Space>
-          <Button onClick={handleCancel}>取消</Button>
-          <Button type="primary" disabled={Boolean(cycleError)} onClick={handleSave}>
-            保存
-          </Button>
-        </Space>
-      )
-    }
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setManualProductIds((prev) => {
+      const oldIndex = prev.indexOf(active.id as string)
+      const newIndex = prev.indexOf(over.id as string)
+      const newArr = [...prev]
+      newArr.splice(oldIndex, 1)
+      newArr.splice(newIndex, 0, active.id as string)
+      return newArr
+    })
+  }
 
-    if (isOwner) {
-      return (
-        <Space>
-          <Button type="primary" icon={<EditOutlined />} onClick={() => setIsEditing(true)}>
-            编辑
-          </Button>
-          <Button onClick={handleToggleStatus}>
-            {isActive ? '停用' : '启用'}
-          </Button>
-          <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
-            删除
-          </Button>
-        </Space>
-      )
-    }
+  // MANUAL 模式：添加商品
+  function handleAddProduct(productId: string) {
+    setManualProductIds((prev) => [...prev, productId])
+  }
 
-    return (
-      <Space>
-        <Tooltip title="仅创建人可操作">
-          <Button type="primary" icon={<EditOutlined />} disabled>
-            编辑
-          </Button>
-        </Tooltip>
-        <Tooltip title="仅创建人可操作">
-          <Button disabled>
-            {isActive ? '停用' : '启用'}
-          </Button>
-        </Tooltip>
-        <Tooltip title="仅创建人可操作">
-          <Button danger icon={<DeleteOutlined />} disabled>
-            删除
-          </Button>
-        </Tooltip>
-      </Space>
-    )
+  // MANUAL 模式：移除商品
+  function handleRemoveProduct(productId: string) {
+    setManualProductIds((prev) => prev.filter((id) => id !== productId))
+  }
+
+  // MANUAL 模式：上移商品
+  function handleMoveUp(index: number) {
+    if (index === 0) return
+    setManualProductIds((prev) => {
+      const newArr = [...prev]
+      ;[newArr[index - 1], newArr[index]] = [newArr[index], newArr[index - 1]]
+      return newArr
+    })
+  }
+
+  // MANUAL 模式：下移商品
+  function handleMoveDown(index: number) {
+    if (index === manualProductIds.length - 1) return
+    setManualProductIds((prev) => {
+      const newArr = [...prev]
+      ;[newArr[index], newArr[index + 1]] = [newArr[index + 1], newArr[index]]
+      return newArr
+    })
   }
 
   return (
-    <Flex vertical gap={16}>
+    <Flex vertical gap={24}>
+      {/* 页面头部 */}
       <Flex align="center" justify="space-between">
         <Flex align="center" gap={12}>
           <Button
@@ -242,38 +343,70 @@ export function StrategyEditPage() {
             onClick={() => navigate('/strategies')}
           />
           <Typography.Title level={4} style={{ margin: 0 }}>
-            {isEditing ? '编辑排序策略' : '查看排序策略'}
+            {isEditing ? '编辑排序策略' : strategy.name}
           </Typography.Title>
           {isSystem && <Tag color="blue">系统内置</Tag>}
         </Flex>
-        {renderHeaderActions()}
+        <Space size={8}>
+          {isEditing
+            ? (
+                <>
+                  <Button onClick={handleCancel}>取消</Button>
+                  <Button type="primary" disabled={Boolean(cycleError)} onClick={handleSave}>保存</Button>
+                </>
+              )
+            : (
+                <>
+                  {isOwner ? (
+                    <>
+                      <Button icon={<EditOutlined />} onClick={() => setIsEditing(true)}>编辑</Button>
+                      <Button onClick={handleToggleStatus}>{isActive ? '停用' : '启用'}</Button>
+                      <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>删除</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Tooltip title="仅创建人可操作"><Button icon={<EditOutlined />} disabled>编辑</Button></Tooltip>
+                      <Tooltip title="仅创建人可操作"><Button disabled>{isActive ? '停用' : '启用'}</Button></Tooltip>
+                      <Tooltip title="仅创建人可操作"><Button danger icon={<DeleteOutlined />} disabled>删除</Button></Tooltip>
+                    </>
+                  )}
+                </>
+              )
+          }
+        </Space>
       </Flex>
 
-      <fieldset disabled={readonly} style={{ border: 'none', padding: 0, margin: 0 }}>
-
-      {/* 区域一：基础信息 */}
-      <Card title="基础信息">
-        <Form layout="vertical">
-          <Row gutter={16}>
+      <Form
+        form={form}
+        layout="vertical"
+        disabled={readonly}
+        labelCol={{ span: 24 }}
+        style={{ border: 'none', padding: 0, margin: 0 }}
+      >
+        {/* 区域一：基础信息 */}
+        <Card title="基础信息" bordered style={{ marginBottom: 24 }}>
+          <Row gutter={24}>
             <Col span={12}>
-              <Form.Item label="策略名称">
-                <Input
-                  value={currentDraft.name}
-                  onChange={(e) => setDraft({ ...currentDraft, name: e.target.value })}
-                />
+              <Form.Item
+                label="策略名称"
+                name="name"
+                rules={[
+                  { required: true, message: '请输入策略名称' },
+                  { min: 1, max: 30, message: '策略名称长度为 1-30 字' },
+                ]}
+              >
+                <Input placeholder="请输入策略名称，1-30 字" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item label="选择选品池">
+              <Form.Item
+                label="选择选品池"
+                name="poolId"
+                rules={[{ required: true, message: '请选择选品池' }]}
+              >
                 <Select
-                  value={currentDraft.poolId}
-                  onChange={(value) =>
-                    setDraft({
-                      ...currentDraft,
-                      poolId: value,
-                      manualProductIds: [],
-                    })
-                  }
+                  placeholder="请选择选品池"
+                  onChange={setSelectedPoolId}
                   options={state.pools.map((pool) => ({
                     label: `${pool.name} · ${pool.productIds.length} 件商品`,
                     value: pool.id,
@@ -282,194 +415,262 @@ export function StrategyEditPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="描述">
-            <Input.TextArea
-              value={currentDraft.description}
-              placeholder="选填，描述该策略的用途和适用场景"
-              rows={2}
-              maxLength={200}
-              showCount
-              onChange={(e) => setDraft({ ...currentDraft, description: e.target.value })}
-            />
-          </Form.Item>
-        </Form>
-      </Card>
+          <Row>
+            <Col span={24}>
+              <Form.Item
+                label="描述"
+                name="description"
+                rules={[{ max: 200, message: '描述最多 200 字' }]}
+              >
+                <Input.TextArea
+                  placeholder="选填，描述该策略的用途和适用场景"
+                  rows={2}
+                  showCount
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
 
-      {/* 区域二：排序模式 */}
-      <Card title="排序模式" style={{ marginTop: 16 }}>
-        <Form layout="vertical">
-          <Radio.Group
-            value={currentDraft.mode}
-            onChange={(e) => setDraft({ ...currentDraft, mode: e.target.value })}
-            style={{ width: '100%' }}
+        {/* 区域二：排序模式 */}
+        <Card title="排序模式" bordered style={{ marginBottom: 24 }}>
+          <Form.Item
+            label="排序方式"
+            name="mode"
+            rules={[{ required: true, message: '请选择排序方式' }]}
           >
-            <Row gutter={16}>
-              {(['HOT', 'NEW', 'MANUAL'] as const).map((mode) => {
-                const meta = modeMeta[mode]
+            <Radio.Group
+              onChange={(e) => setMode(e.target.value)}
+              value={mode}
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}
+            >
+              {(['HOT', 'NEW', 'MANUAL'] as const).map((m) => {
+                const meta = modeMeta[m]
+                const isSelected = mode === m
                 return (
-                  <Col span={8} key={mode}>
-                    <Radio.Button
-                      value={mode}
-                      style={{
-                        width: '100%',
-                        height: 'auto',
-                        padding: '16px',
-                        textAlign: 'left',
-                        whiteSpace: 'normal',
-                      }}
-                    >
-                      <Flex justify="space-between" align="center">
-                        <Space>
-                          {meta.icon}
-                          <Typography.Text strong>{meta.title}</Typography.Text>
-                        </Space>
-                        <Tag color={meta.color}>{meta.tag}</Tag>
-                      </Flex>
-                      <Typography.Text
-                        type="secondary"
-                        style={{ display: 'block', marginTop: 8, fontSize: 12 }}
+                  <div
+                    key={m}
+                    style={{
+                      flex: 1,
+                      minWidth: 220,
+                      padding: 16,
+                      borderRadius: 8,
+                      border: `1px solid ${isSelected ? '#1677ff' : '#d9d9d9'}`,
+                      background: isSelected ? '#e6f4ff' : '#ffffff',
+                      cursor: readonly ? 'default' : 'pointer',
+                      position: 'relative',
+                      transition: 'border-color 0.2s',
+                    }}
+                    onClick={() => {
+                      if (readonly) return
+                      setMode(m)
+                      form.setFieldValue('mode', m)
+                    }}
+                    onMouseEnter={(e) => {
+                      if (readonly || isSelected) return
+                      ;(e.currentTarget as HTMLDivElement).style.borderColor = '#1677ff'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (readonly || isSelected) return
+                      ;(e.currentTarget as HTMLDivElement).style.borderColor = '#d9d9d9'
+                    }}
+                  >
+                    {isSelected && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          width: 20,
+                          height: 20,
+                          background: '#1677ff',
+                          borderRadius: '0 8px 0 8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
                       >
-                        {meta.desc}
-                      </Typography.Text>
-                    </Radio.Button>
-                  </Col>
+                        <CheckOutlined style={{ color: '#fff', fontSize: 12 }} />
+                      </div>
+                    )}
+                    <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+                      <Space>
+                        {meta.icon}
+                        <Typography.Text
+                          strong
+                          style={{ color: isSelected ? '#1677ff' : undefined }}
+                        >
+                          {meta.title}
+                        </Typography.Text>
+                      </Space>
+                      {meta.tag === 'MANUAL' ? (
+                        <Tag>{meta.tag}</Tag>
+                      ) : (
+                        <Tag color={meta.color}>{meta.tag}</Tag>
+                      )}
+                    </Flex>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {meta.desc}
+                    </Typography.Text>
+                  </div>
                 )
               })}
-            </Row>
-          </Radio.Group>
+            </Radio.Group>
+          </Form.Item>
 
           {/* HOT 模式参数 */}
-          {currentDraft.mode === 'HOT' && (
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={12}>
-                <Form.Item label="排序维度">
-                  <Select
-                    value={currentDraft.sortDimension}
-                    options={sortDimensionOptions}
-                    onChange={(value) => setDraft({ ...currentDraft, sortDimension: value })}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="时间窗口">
-                  <Select
-                    value={currentDraft.timeWindow}
-                    options={timeWindowOptions}
-                    onChange={(value) => setDraft({ ...currentDraft, timeWindow: value })}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          )}
+          <Form.Item noStyle shouldUpdate>
+            {() =>
+              mode === 'HOT' && (
+                <Row gutter={24} style={{ marginTop: 16 }}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="排序维度"
+                      name="sortDimension"
+                      rules={[{ required: true, message: '请选择排序维度' }]}
+                    >
+                      <Select options={sortDimensionOptions} />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item
+                      label="时间窗口"
+                      name="timeWindow"
+                      rules={[{ required: true, message: '请选择时间窗口' }]}
+                    >
+                      <Select options={timeWindowOptions} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )
+            }
+          </Form.Item>
 
           {/* NEW 模式参数 */}
-          {currentDraft.mode === 'NEW' && (
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={12}>
-                <Form.Item label="时间窗口" help="上新时间在该窗口内的商品参与排序">
-                  <Select
-                    value={currentDraft.timeWindow}
-                    options={timeWindowOptions}
-                    onChange={(value) => setDraft({ ...currentDraft, timeWindow: value })}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-          )}
+          <Form.Item noStyle shouldUpdate>
+            {() =>
+              mode === 'NEW' && (
+                <Row gutter={24} style={{ marginTop: 16 }}>
+                  <Col span={12}>
+                    <Form.Item
+                      label="时间窗口"
+                      name="timeWindow"
+                      rules={[{ required: true, message: '请选择时间窗口' }]}
+                      help="上新时间在该窗口内的商品参与排序"
+                    >
+                      <Select options={timeWindowOptions} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              )
+            }
+          </Form.Item>
 
-          {/* MANUAL 模式：商品拖拽区 */}
-          {currentDraft.mode === 'MANUAL' && (
-            <Row gutter={16} style={{ marginTop: 16 }}>
-              <Col span={12}>
-                <Card
-                  size="small"
-                  title="选品池商品"
-                  extra={
-                    <Input
-                      placeholder="搜索商品"
-                      allowClear
-                      style={{ width: 160 }}
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                    />
-                  }
-                >
-                  <List
-                    dataSource={availableProducts}
-                    locale={{ emptyText: <Empty description="无匹配商品" /> }}
-                    style={{ maxHeight: 400, overflow: 'auto' }}
-                    renderItem={(product) => (
-                      <List.Item
-                        actions={
-                          readonly
-                            ? []
-                            : [
-                                <Button
-                                  key="add"
-                                  type="link"
-                                  size="small"
-                                  icon={<PlusOutlined />}
-                                  onClick={() =>
-                                    setDraft({
-                                      ...currentDraft,
-                                      manualProductIds: [...currentDraft.manualProductIds, product.id],
-                                    })
-                                  }
-                                >
-                                  添加
-                                </Button>,
-                              ]
-                        }
-                      >
-                        <List.Item.Meta
-                          title={product.name}
-                          description={product.spuId}
+          {/* MANUAL 模式：商品排序 */}
+          <Form.Item noStyle shouldUpdate>
+            {() =>
+              mode === 'MANUAL' && (
+                <Row gutter={24} style={{ marginTop: 16 }}>
+                  <Col span={12}>
+                    <Card
+                      title="选品池商品"
+                      style={{ height: 480 }}
+                      bodyStyle={{ height: 'calc(100% - 48px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
+                    >
+                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                        <Input.Search
+                          placeholder="搜索商品"
+                          allowClear
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          prefix={<SearchOutlined />}
                         />
-                      </List.Item>
-                    )}
-                  />
-                </Card>
-              </Col>
-              <Col span={12}>
-                <Card size="small" title="已选排序列表">
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={currentDraft.manualProductIds} strategy={verticalListSortingStrategy}>
-                      <Flex vertical gap={0} style={{ maxHeight: 400, overflow: 'auto' }}>
-                        {selectedProducts.length === 0 ? (
-                          <Empty description="请从左侧添加商品" />
-                        ) : (
-                          selectedProducts.map((product) => (
-                            <ManualSortRow
-                              key={product.id}
-                              product={product}
-                              readonly={readonly}
-                              onRemove={() =>
-                                setDraft({
-                                  ...currentDraft,
-                                  manualProductIds: currentDraft.manualProductIds.filter(
-                                    (item) => item !== product.id,
-                                  ),
-                                })
+                      </div>
+                      <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <List
+                          dataSource={availableProducts}
+                          split
+                          locale={{ emptyText: <Empty description="无可用商品" /> }}
+                          renderItem={(product) => (
+                            <List.Item
+                              actions={
+                                readonly
+                                  ? []
+                                  : [
+                                      <Button
+                                        key="add"
+                                        type="link"
+                                        size="small"
+                                        icon={<PlusOutlined />}
+                                        onClick={() => handleAddProduct(product.id)}
+                                      >
+                                        添加
+                                      </Button>,
+                                    ]
                               }
-                            />
-                          ))
+                            >
+                              <List.Item.Meta
+                                title={product.name}
+                                description={
+                                  <Typography.Text type="secondary">{product.spuId}</Typography.Text>
+                                }
+                              />
+                            </List.Item>
+                          )}
+                        />
+                      </div>
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card
+                      title={`已选排序列表（${manualProductIds.length} 个商品）`}
+                      style={{ height: 480 }}
+                      bodyStyle={{ height: 'calc(100% - 48px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
+                    >
+                      <div style={{ flex: 1, overflowY: 'auto' }}>
+                        {selectedProducts.length === 0 ? (
+                          <Flex align="center" justify="center" style={{ height: '100%' }}>
+                            <Empty description="请从左侧添加商品" />
+                          </Flex>
+                        ) : (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
+                          >
+                            <SortableContext
+                              items={manualProductIds}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {selectedProducts.map((product, index) => (
+                                <ManualSortRow
+                                  key={product.id}
+                                  product={product}
+                                  index={index}
+                                  total={selectedProducts.length}
+                                  readonly={readonly}
+                                  onMoveUp={() => handleMoveUp(index)}
+                                  onMoveDown={() => handleMoveDown(index)}
+                                  onRemove={() => handleRemoveProduct(product.id)}
+                                />
+                              ))}
+                            </SortableContext>
+                          </DndContext>
                         )}
-                      </Flex>
-                    </SortableContext>
-                  </DndContext>
-                </Card>
-              </Col>
-            </Row>
-          )}
-        </Form>
-      </Card>
+                      </div>
+                    </Card>
+                  </Col>
+                </Row>
+              )
+            }
+          </Form.Item>
+        </Card>
 
-      {/* 区域三：高级配置 */}
-      <Card title="高级配置" style={{ marginTop: 16 }}>
-        <Form layout="vertical">
-          <Row gutter={16}>
+        {/* 区域三：高级配置 */}
+        <Card title="高级配置" bordered style={{ marginBottom: 24 }}>
+          <Row gutter={24}>
             <Col span={12}>
-              {currentDraft.kind === 'SYSTEM' ? (
+              {strategy.kind === 'SYSTEM' ? (
                 <Form.Item label="兜底策略">
                   <Input value="系统终极兜底，无需配置" disabled />
                 </Form.Item>
@@ -477,19 +678,16 @@ export function StrategyEditPage() {
                 <>
                   <Form.Item
                     label="兜底策略"
+                    name="fallbackStrategyId"
                     help={cycleError ?? '默认使用全量热销榜兜底，可更换为其他排序策略。'}
                     validateStatus={cycleError ? 'error' : undefined}
                   >
                     <Select
-                      value={currentDraft.fallbackStrategyId ?? 'strategy-hot-all'}
-                      onChange={(value) =>
-                        setDraft({
-                          ...currentDraft,
-                          fallbackStrategyId: value,
-                        })
-                      }
+                      placeholder="请选择兜底策略（可选）"
+                      allowClear
+                      onChange={setFallbackId}
                       options={state.strategies
-                        .filter((item) => item.id !== currentDraft.id)
+                        .filter((item) => item.id !== strategy.id)
                         .map((item) => ({
                           label: (
                             <Space>
@@ -509,68 +707,110 @@ export function StrategyEditPage() {
             </Col>
             <Col span={12}>
               <Form.Item label="过滤规则" help="系统自动过滤下架 / 不可售商品">
-                <Input value="已开启，且不可取消" disabled />
+                <Flex align="center" gap={8}>
+                  <Tag color="success">已开启</Tag>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    不可取消
+                  </Typography.Text>
+                </Flex>
               </Form.Item>
             </Col>
           </Row>
-        </Form>
-      </Card>
-
-      </fieldset>
+        </Card>
+      </Form>
     </Flex>
   )
 }
 
 function ManualSortRow({
   product,
+  index,
+  total,
   readonly,
+  onMoveUp,
+  onMoveDown,
   onRemove,
 }: {
   product: Product
+  index: number
+  total: number
   readonly: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
   onRemove: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: product.id,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id })
+
+  const style: React.CSSProperties = {
+    padding: '12px 16px',
+    borderBottom: '1px solid #f0f0f0',
+    background: isDragging ? '#e6f4ff' : '#fff',
+    opacity: isDragging ? 0.5 : 1,
+    transition,
+    transform: transform ? CSS.Translate.toString(transform) : undefined,
+  }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-        padding: '8px 12px',
-        borderBottom: '1px solid #f0f0f0',
-        background: isDragging ? '#fafafa' : '#fff',
-        cursor: 'default',
-      }}
-    >
+    <div ref={setNodeRef} style={style}>
       <Flex align="center" gap={8}>
+        {/* 拖拽手柄 */}
         {!readonly && (
-          <HolderOutlined
-            style={{ cursor: 'grab', color: '#999', fontSize: 16 }}
+          <span
             {...attributes}
             {...listeners}
-          />
-        )}
-        <Flex vertical style={{ flex: 1, minWidth: 0 }}>
-          <Typography.Text ellipsis>{product.name}</Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {`\u00A5${product.price}`}
-          </Typography.Text>
-        </Flex>
-        {!readonly && (
-          <Button
-            type="text"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={onRemove}
+            style={{ cursor: 'grab', color: '#bfbfbf', fontSize: 16, flexShrink: 0 }}
           >
-            移除
-          </Button>
+            <HolderOutlined />
+          </span>
+        )}
+        {/* 序号 */}
+        <Avatar size="small" style={{ background: '#f0f0f0', color: '#666', flexShrink: 0 }}>
+          {index + 1}
+        </Avatar>
+        {/* 商品信息 */}
+        <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
+          <Typography.Text strong ellipsis style={{ fontSize: 14 }}>
+            {product.name}
+          </Typography.Text>
+          <Flex gap={8} align="center" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary">{product.spuId}</Typography.Text>
+            <Tag style={{ margin: 0 }}>{product.category}</Tag>
+            <Typography.Text type="secondary">¥{product.price}</Typography.Text>
+          </Flex>
+        </Flex>
+        {/* 操作按钮 */}
+        {!readonly && (
+          <Space size="small">
+            <Tooltip title="上移">
+              <Button
+                type="text"
+                size="small"
+                icon={<UpOutlined />}
+                disabled={index === 0}
+                onClick={onMoveUp}
+              />
+            </Tooltip>
+            <Tooltip title="下移">
+              <Button
+                type="text"
+                size="small"
+                icon={<DownOutlined />}
+                disabled={index === total - 1}
+                onClick={onMoveDown}
+              />
+            </Tooltip>
+            <Tooltip title="移除">
+              <Button
+                type="link"
+                danger
+                size="small"
+                icon={<DeleteOutlined />}
+                onClick={onRemove}
+              >
+                移除
+              </Button>
+            </Tooltip>
+          </Space>
         )}
       </Flex>
     </div>
