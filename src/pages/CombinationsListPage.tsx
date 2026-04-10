@@ -16,7 +16,7 @@ import {
   getPoolProducts,
   strategyMap,
 } from '../lib/domain'
-import { CURRENT_USER, useAdminStore } from '../lib/store'
+import { useAdminStore } from '../lib/store'
 import type { Combination } from '../lib/types'
 
 function deriveBusinessUnit(
@@ -202,9 +202,7 @@ export function CombinationsListPage() {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_, record) => {
-        const canOperate = record.id // all combinations are user-created in this mock
-        return (
+      render: (_, record) => (
           <Space>
             <Button
               type="link"
@@ -245,7 +243,6 @@ export function CombinationsListPage() {
             </Dropdown>
           </Space>
         )
-      },
     },
   ]
 

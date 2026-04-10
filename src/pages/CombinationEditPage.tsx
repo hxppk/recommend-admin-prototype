@@ -26,6 +26,7 @@ import {
   Card,
   Col,
   Dropdown,
+  Empty,
   Flex,
   InputNumber,
   Modal,
@@ -61,7 +62,7 @@ export function CombinationEditPage() {
   // 策略分组：统计每个策略被哪些 slot 使用
   const strategyGroups = useMemo(() => {
     const groups = new Map<string | null, number[]>()
-    draft.slots.forEach((slot, index) => {
+    draft!.slots.forEach((slot, index) => {
       const key = slot.strategyId
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(index)
@@ -75,7 +76,7 @@ export function CombinationEditPage() {
       ci += 1
     }
     return { indexes: groups, colors: colorMap }
-  }, [draft.slots])
+  }, [draft!.slots])
 
   useEffect(() => {
     setDraft(combination ?? null)
@@ -95,9 +96,9 @@ export function CombinationEditPage() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = draft.slots.findIndex((slot) => slot.id === active.id)
-    const newIndex = draft.slots.findIndex((slot) => slot.id === over.id)
-    setDraft({ ...draft, slots: arrayMove(draft.slots, oldIndex, newIndex) })
+    const oldIndex = draft!.slots.findIndex((slot) => slot.id === active.id)
+    const newIndex = draft!.slots.findIndex((slot) => slot.id === over.id)
+    setDraft({ ...draft!, slots: arrayMove(draft!.slots, oldIndex, newIndex) })
   }
 
   function handleSlotChange(slotId: string, patch: Partial<CombinationSlot>) {
@@ -107,39 +108,39 @@ export function CombinationEditPage() {
   }
 
   function handleRemoveSlot(slotId: string) {
-    if (draft.slots.length <= 1) return
-    setDraft({ ...draft, slots: draft.slots.filter((s) => s.id !== slotId) })
+    if (draft!.slots.length <= 1) return
+    setDraft({ ...draft!, slots: draft!.slots.filter((s) => s.id !== slotId) })
   }
 
   function handleSave() {
-    updateCombination(draft.id, draft)
+    updateCombination(draft!.id, draft!)
     navigate('/combinations')
   }
 
   function handleCancel() {
-    setDraft(combination)
+    setDraft(combination ?? null)
     setIsEditing(false)
   }
 
   function handleDelete() {
     Modal.confirm({
       title: '确认删除',
-      content: `确认删除策略组合「${draft.name}」吗？`,
+      content: `确认删除策略组合「${draft!.name}」吗？`,
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
       onOk: () => {
-        deleteCombination(draft.id)
+        deleteCombination(draft!.id)
         navigate('/combinations')
       },
     })
   }
 
   function handleToggleStatus() {
-    updateCombination(draft.id, {
-      ...draft,
-      status: draft.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-    })
+    updateCombination(draft!.id, {
+      ...draft!,
+      status: draft!.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+    } as Combination)
   }
 
   return (
@@ -213,7 +214,7 @@ export function CombinationEditPage() {
                             slot={slot}
                             readonly={readonly}
                             groupColor={groupColor}
-                            continuation={!isFirst && sameStrategySlots.length > 1
+                            continuation={(!isFirst && sameStrategySlots.length > 1 && prevIndex !== undefined)
                               ? {
                                   prevIndex,
                                   displayRank: posInGroup + 1,

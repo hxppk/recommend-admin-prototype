@@ -210,7 +210,7 @@ function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['
   const isSystem = pool.kind === 'SYSTEM'
   const [hovered, setHovered] = useState(false)
 
-  const cardStyle: React.CSSProperties = disabled
+  const cardStyle: React.CSSProperties | undefined = disabled
     ? {
         background: '#fafafa',
         border: `1px solid ${hovered ? '#d9d9d9' : '#f0f0f0'}`,
