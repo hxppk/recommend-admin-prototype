@@ -268,7 +268,7 @@ export function simulatePreview(
     .filter((plan) => getTimeStatus(plan) === '投放中')
     .filter((plan) => planMatchesStore(plan, storeId, state.stores))
     .filter((plan) => planMatchesAudience(plan, segments))
-    .sort((left, right) => right.priority - left.priority)
+    .sort((left, right) => (right.priority ?? -1) - (left.priority ?? -1))
 
   const plan = eligiblePlans[0] ?? null
   if (!plan || !plan.combinationId) {

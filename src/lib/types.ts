@@ -78,7 +78,7 @@ export interface Plan {
   name: string
   createdBy: string
   status: PlanStatus
-  priority: number
+  priority: number | undefined
   startAt: string
   endAt: string
   scene: 'ORDER_RECOMMEND'
@@ -98,6 +98,7 @@ export interface Plan {
     experimentKey: string
     groups: AbTestGroup[]
   }
+  slotIds?: string[]
 }
 
 export interface StoreLocation {
@@ -130,6 +131,7 @@ export interface AdminState {
   plans: Plan[]
   stores: StoreLocation[]
   segments: AudienceSegment[]
+  storeGroups: Record<string, string[]>
   dashboardSeries: DashboardPoint[]
 }
 

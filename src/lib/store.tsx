@@ -35,8 +35,11 @@ interface AdminStoreValue {
 }
 
 export const CURRENT_USER = '陈悦'
+export const CURRENT_USER_ROLE = 'ADMIN'
 
 const STORAGE_KEY = 'recommend-admin-store'
+const VERSION_KEY = 'recommend-admin-data-version'
+const DATA_VERSION = '20260410'
 const AdminStoreContext = createContext<AdminStoreValue | null>(null)
 
 function replaceItem<T extends { id: string }>(items: T[], next: T) {
@@ -62,10 +65,10 @@ function clonePlan(plan: Plan): Plan {
 export function AdminStoreProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AdminState>(() => {
     const cached = localStorage.getItem(STORAGE_KEY)
-    if (!cached) return initialState
+    const cachedVersion = localStorage.getItem(VERSION_KEY)
+    if (!cached || cachedVersion !== DATA_VERSION) return initialState
     try {
       const parsed = JSON.parse(cached) as AdminState
-      // Reset if cached data is missing new fields
       if (
         (parsed.pools?.[0] && !('createdBy' in parsed.pools[0])) ||
         (parsed.strategies?.[0] && !('createdBy' in parsed.strategies[0])) ||
@@ -84,6 +87,7 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(VERSION_KEY, DATA_VERSION)
   }, [state])
 
   const value: AdminStoreValue = {
@@ -230,17 +234,18 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
       const id = createId('plan')
       const next: Plan = {
         id,
-        name: `新建计划 ${state.plans.length}`,
+        name: '',
         createdBy: CURRENT_USER,
         status: 'DRAFT',
-        priority: 50,
-        startAt: '2026-03-16T09:00',
-        endAt: '2026-04-16T23:59',
+        priority: undefined,
+        startAt: '',
+        endAt: '',
         scene: 'ORDER_RECOMMEND',
-        combinationId: state.combinations[0]?.id ?? null,
+        combinationId: null,
         version: 1,
         storeScope: { type: 'ALL', regionIds: [], storeIds: [] },
         audienceScope: { type: 'ALL', segmentIds: [] },
+        slotIds: [],
         abTest: {
           enabled: false,
           experimentKey: '',

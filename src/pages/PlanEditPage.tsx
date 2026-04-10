@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createId, findPlanConflicts } from '../lib/domain'
-import { CURRENT_USER, useAdminStore } from '../lib/store'
-import type { AbTestGroup, Plan, PlanStatus, StoreScopeType, AudienceScopeType } from '../lib/types'
+import { CURRENT_USER, CURRENT_USER_ROLE, useAdminStore } from '../lib/store'
+import type { AbTestGroup, Plan, PlanStatus, AudienceScopeType } from '../lib/types'
 import {
   Alert,
   Button,
   Card,
-  Checkbox,
   DatePicker,
   Flex,
   Input,
-  InputNumber,
+  type InputRef,
   Modal,
   Radio,
   Result,
@@ -34,6 +33,18 @@ import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
+const SLOT_OPTIONS = [
+  { value: 'slot-home-top', label: '首页顶部资源位' },
+  { value: 'slot-home-middle', label: '首页中部资源位' },
+  { value: 'slot-order-confirm', label: '订单确认页资源位' },
+  { value: 'slot-detail-bottom', label: '商品详情页底部资源位' },
+]
+
+const STORE_GROUP_OPTIONS = [
+  { value: 'group-chengdu', label: '成都区域组' },
+  { value: 'group-chongqing', label: '重庆区域组' },
+]
+
 export function PlanEditPage() {
   const navigate = useNavigate()
   const { id = '' } = useParams()
@@ -42,13 +53,24 @@ export function PlanEditPage() {
   const [draft, setDraft] = useState<Plan | null>(plan ?? null)
   const [expandedAb, setExpandedAb] = useState(Boolean(plan?.abTest.enabled))
   const [pendingSave, setPendingSave] = useState<Plan | null>(null)
+  const [slotError, setSlotError] = useState(false)
+  const [nameError, setNameError] = useState(false)
+  const [storeError, setStoreError] = useState(false)
+  const [audienceError, setAudienceError] = useState(false)
+  const nameInputRef = useRef<InputRef>(null)
+
   const isOwner = plan?.createdBy === CURRENT_USER
-  const [isEditing, setIsEditing] = useState(isOwner)
+  const isAdmin = CURRENT_USER_ROLE === 'ADMIN'
+  const canEdit = isOwner || (isAdmin && plan?.status === 'DRAFT')
+  const [isEditing, setIsEditing] = useState(canEdit)
   const readonly = !isEditing
 
   useEffect(() => {
     setDraft(plan ?? null)
     setExpandedAb(Boolean(plan?.abTest.enabled))
+    if (plan && !plan.name) {
+      setTimeout(() => nameInputRef.current?.focus(), 100)
+    }
   }, [plan])
 
   if (!plan || !draft) {
@@ -69,15 +91,21 @@ export function PlanEditPage() {
   const currentDraft = draft
   const conflicts = pendingSave ? findPlanConflicts(state, pendingSave) : []
 
-  function updateStoreScope(type: StoreScopeType) {
+  function updateStoreScope(type: 'ALL' | 'GROUP') {
     setDraft({
       ...currentDraft,
       storeScope: {
-        type,
-        regionIds: type === 'REGION' ? currentDraft.storeScope.regionIds : [],
-        storeIds: type === 'STORE' ? currentDraft.storeScope.storeIds : [],
+        type: type === 'ALL' ? 'ALL' : 'STORE',
+        regionIds: type === 'GROUP' ? currentDraft.storeScope.regionIds : [],
+        storeIds: [],
       },
     })
+  }
+
+  function resolveStoreGroupIds(groupIds: string[]): string[] {
+    return groupIds
+      .map((groupId) => state.storeGroups[groupId] ?? [])
+      .flat()
   }
 
   function updateAudienceScope(type: AudienceScopeType) {
@@ -91,6 +119,38 @@ export function PlanEditPage() {
   }
 
   function saveWithStatus(status: PlanStatus) {
+    // Reset all errors
+    setNameError(false)
+    setSlotError(false)
+    setStoreError(false)
+    setAudienceError(false)
+
+    // Validate plan name
+    if (!currentDraft.name.trim()) {
+      setNameError(true)
+      nameInputRef.current?.focus()
+      return
+    }
+
+    // Validate resource slots
+    const slotIds = currentDraft.slotIds ?? []
+    if (slotIds.length === 0) {
+      setSlotError(true)
+      return
+    }
+
+    // Validate store groups when GROUP mode selected
+    if (currentDraft.storeScope.type === 'STORE' && currentDraft.storeScope.storeIds.length === 0) {
+      setStoreError(true)
+      return
+    }
+
+    // Validate audience segments when SEGMENT mode selected
+    if (currentDraft.audienceScope.type === 'SEGMENT' && currentDraft.audienceScope.segmentIds.length === 0) {
+      setAudienceError(true)
+      return
+    }
+
     const next: Plan = {
       ...currentDraft,
       status,
@@ -124,8 +184,6 @@ export function PlanEditPage() {
     })
   }
 
-  const regions = [...new Set(state.stores.map((store) => store.region))]
-
   const abTestColumns: ColumnsType<AbTestGroup> = [
     {
       title: '分组名称',
@@ -146,21 +204,6 @@ export function PlanEditPage() {
         <Input
           value={vid}
           onChange={(e) => updateGroup(record.id, { vid: e.target.value })}
-        />
-      ),
-    },
-    {
-      title: '流量比例 (%)',
-      dataIndex: 'traffic',
-      key: 'traffic',
-      width: 140,
-      render: (traffic: number, record: AbTestGroup) => (
-        <InputNumber
-          value={traffic}
-          min={0}
-          max={100}
-          style={{ width: '100%' }}
-          onChange={(value) => updateGroup(record.id, { traffic: value ?? 0 })}
         />
       ),
     },
@@ -203,12 +246,12 @@ export function PlanEditPage() {
           </Title>
         </Flex>
         {!isEditing && (
-          isOwner ? (
+          canEdit ? (
             <Button icon={<EditOutlined />} onClick={() => setIsEditing(true)}>
               进入编辑
             </Button>
           ) : (
-            <Tooltip title="仅创建人可编辑">
+            <Tooltip title="仅创建人或管理员（草稿）可编辑">
               <Button icon={<EditOutlined />} disabled>
                 进入编辑
               </Button>
@@ -222,12 +265,15 @@ export function PlanEditPage() {
       <Card title="基础信息">
         <Flex gap="large">
           <Flex vertical gap="small" style={{ flex: 1 }}>
-            <Text>计划名称</Text>
+            <Text><span style={{color: '#ff4d4f', marginRight: 4}}>*</span>计划名称</Text>
             <Input
+              ref={nameInputRef}
               value={currentDraft.name}
               placeholder="请输入计划名称"
-              onChange={(e) => setDraft({ ...currentDraft, name: e.target.value })}
+              onChange={(e) => { setNameError(false); setDraft({ ...currentDraft, name: e.target.value }) }}
+              status={nameError ? 'error' : undefined}
             />
+            {nameError && <Text type="danger" style={{ fontSize: 12 }}>请输入计划名称</Text>}
           </Flex>
           <Flex vertical gap="small" style={{ flex: 1 }}>
             <Text>投放场景</Text>
@@ -256,10 +302,6 @@ export function PlanEditPage() {
               }))}
             />
           </Flex>
-          <Flex vertical gap="small" style={{ flex: 1 }}>
-            <Text>版本号</Text>
-            <Input value={`v${currentDraft.version}`} disabled />
-          </Flex>
         </Flex>
       </Card>
 
@@ -269,15 +311,21 @@ export function PlanEditPage() {
           <Flex gap="large">
             <Flex vertical gap="small" style={{ flex: 1 }}>
               <Text>优先级</Text>
-              <Tooltip title="数字越大优先级越高">
-                <InputNumber
-                  value={currentDraft.priority}
-                  min={1}
-                  max={99}
-                  style={{ width: '100%' }}
-                  onChange={(value) => setDraft({ ...currentDraft, priority: value ?? 1 })}
-                />
-              </Tooltip>
+              <Text type="secondary">—</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>由列表页管理员统一配置</Text>
+            </Flex>
+            <Flex vertical gap="small" style={{ flex: 1 }}>
+              <Text><span style={{color: '#ff4d4f', marginRight: 4}}>*</span>投放资源位ID</Text>
+              <Select
+                mode="multiple"
+                value={currentDraft.slotIds ?? []}
+                placeholder="请选择资源位"
+                allowClear
+                onChange={(value) => { setDraft({ ...currentDraft, slotIds: value as string[] }); setSlotError(false) }}
+                options={SLOT_OPTIONS}
+                status={slotError ? 'error' : undefined}
+              />
+              {slotError && <Text type="danger" style={{ fontSize: 12 }}>请选择投放资源位</Text>}
             </Flex>
             <Flex vertical gap="small" style={{ flex: 1 }}>
               <Text>开始时间</Text>
@@ -313,44 +361,37 @@ export function PlanEditPage() {
           <Flex vertical gap="small">
             <Text strong>门店范围</Text>
             <Radio.Group
-              value={currentDraft.storeScope.type}
+              value={currentDraft.storeScope.type === 'ALL' ? 'ALL' : 'GROUP'}
               onChange={(e) => updateStoreScope(e.target.value)}
             >
               <Radio.Button value="ALL">全部门店</Radio.Button>
-              <Radio.Button value="REGION">指定区域</Radio.Button>
-              <Radio.Button value="STORE">指定门店</Radio.Button>
+              <Radio.Button value="GROUP">指定门店组</Radio.Button>
             </Radio.Group>
 
-            {currentDraft.storeScope.type === 'REGION' && (
-              <Checkbox.Group
+            {currentDraft.storeScope.type !== 'ALL' && (
+              <>
+              <Select
+                mode="multiple"
                 value={currentDraft.storeScope.regionIds}
-                onChange={(checkedValues) =>
+                placeholder="请选择门店组"
+                allowClear
+                onChange={(value) => {
+                  setStoreError(false)
                   setDraft({
                     ...currentDraft,
                     storeScope: {
                       ...currentDraft.storeScope,
-                      regionIds: checkedValues as string[],
+                      regionIds: value as string[],
+                      storeIds: resolveStoreGroupIds(value as string[]),
                     },
                   })
-                }
-                options={regions.map((region) => ({ label: region, value: region }))}
+                }}
+                options={STORE_GROUP_OPTIONS}
+                style={{ width: '100%' }}
+                status={storeError ? 'error' : undefined}
               />
-            )}
-
-            {currentDraft.storeScope.type === 'STORE' && (
-              <Checkbox.Group
-                value={currentDraft.storeScope.storeIds}
-                onChange={(checkedValues) =>
-                  setDraft({
-                    ...currentDraft,
-                    storeScope: {
-                      ...currentDraft.storeScope,
-                      storeIds: checkedValues as string[],
-                    },
-                  })
-                }
-                options={state.stores.map((store) => ({ label: store.name, value: store.id }))}
-              />
+              {storeError && <Text type="danger" style={{ fontSize: 12 }}>请选择门店组</Text>}
+              </>
             )}
           </Flex>
 
@@ -366,22 +407,31 @@ export function PlanEditPage() {
             </Radio.Group>
 
             {currentDraft.audienceScope.type === 'SEGMENT' && (
-              <Checkbox.Group
+              <>
+              <Select
+                mode="multiple"
                 value={currentDraft.audienceScope.segmentIds}
-                onChange={(checkedValues) =>
+                placeholder="请选择人群包"
+                allowClear
+                onChange={(value) => {
+                  setAudienceError(false)
                   setDraft({
                     ...currentDraft,
                     audienceScope: {
                       ...currentDraft.audienceScope,
-                      segmentIds: checkedValues as string[],
+                      segmentIds: value as string[],
                     },
                   })
-                }
+                }}
                 options={state.segments.map((segment) => ({
                   label: segment.name,
                   value: segment.id,
                 }))}
+                style={{ width: '100%' }}
+                status={audienceError ? 'error' : undefined}
               />
+              {audienceError && <Text type="danger" style={{ fontSize: 12 }}>请选择人群包</Text>}
+              </>
             )}
           </Flex>
         </Flex>
@@ -392,6 +442,7 @@ export function PlanEditPage() {
         title="ABTest 配置"
         extra={
           <Switch
+            disabled={readonly}
             checked={expandedAb}
             onChange={(checked) => {
               setExpandedAb(checked)
@@ -463,16 +514,31 @@ export function PlanEditPage() {
       </fieldset>
 
       {/* 底部操作 */}
-      {!readonly && (
-        <Flex justify="end" gap="small">
+      {!readonly && plan && (
+        <Flex
+          justify="end"
+          gap="small"
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            background: 'rgba(255,255,255,0.9)',
+            backdropFilter: 'blur(8px)',
+            padding: '12px 0',
+            borderTop: '1px solid #f0f0f0',
+            marginTop: 24,
+          }}
+        >
           <Button onClick={() => navigate('/plans')}>取消</Button>
-          <Button onClick={() => saveWithStatus('DRAFT')}>保存草稿</Button>
-          <Button type="primary" onClick={() => saveWithStatus('PUBLISHED')}>
-            发布
-          </Button>
-          {draft.status !== 'DRAFT' && (
+          {plan.status === 'DRAFT' && (
+            <Button onClick={() => saveWithStatus('DRAFT')}>保存草稿</Button>
+          )}
+          {plan.status === 'PUBLISHED' ? (
             <Button danger onClick={() => saveWithStatus('PAUSED')}>
               暂停
+            </Button>
+          ) : (
+            <Button type="primary" onClick={() => saveWithStatus('PUBLISHED')}>
+              发布
             </Button>
           )}
         </Flex>
