@@ -4,6 +4,7 @@ import { AdminStoreProvider } from './lib/store'
 import { CombinationEditPage } from './pages/CombinationEditPage'
 import { CombinationsListPage } from './pages/CombinationsListPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { MonitoringPage } from './pages/MonitoringPage'
 import { PlanEditPage } from './pages/PlanEditPage'
 import { PlansListPage } from './pages/PlansListPage'
 import { PoolDetailPage } from './pages/PoolDetailPage'
@@ -28,6 +29,7 @@ function App() {
             <Route path="/plans" element={<PlansListPage />} />
             <Route path="/plans/:id/edit" element={<PlanEditPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/monitoring" element={<MonitoringPage />} />
             <Route path="/preview" element={<PreviewPage />} />
           </Route>
         </Routes>

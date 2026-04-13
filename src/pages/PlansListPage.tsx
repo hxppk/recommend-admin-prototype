@@ -317,8 +317,8 @@ export function PlansListPage() {
                     },
                     {
                       key: 'delete',
-                      label: <span style={{ color: '#ff4d4f' }}>删除</span>,
-                      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                      label: <span style={{ color: 'var(--ant-color-error)' }}>删除</span>,
+                      icon: <DeleteOutlined style={{ color: 'var(--ant-color-error)' }} />,
                       onClick: () => handleDelete(record),
                     },
                   ],
@@ -388,7 +388,7 @@ export function PlansListPage() {
         onRow={(record) => {
           if (record.conflicts.length) {
             return {
-              style: { backgroundColor: '#fffbe6' },
+              style: { backgroundColor: 'var(--ant-color-warning-bg)' },
               title: `冲突计划：${record.conflicts.map((item) => item.name).join('、')}`,
             }
           }

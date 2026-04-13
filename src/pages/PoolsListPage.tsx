@@ -212,10 +212,10 @@ function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['
 
   const cardStyle: React.CSSProperties | undefined = disabled
     ? {
-        background: '#fafafa',
-        border: `1px solid ${hovered ? '#d9d9d9' : '#f0f0f0'}`,
+        background: 'var(--ant-color-fill-quaternary)',
+        border: `1px solid ${hovered ? 'var(--ant-color-border)' : 'var(--ant-color-border-secondary)'}`,
         cursor: 'pointer',
-        ...(hovered && { boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }),
+        ...(hovered && { boxShadow: 'var(--ant-box-shadow-secondary)' }),
       }
     : undefined
 
@@ -233,17 +233,17 @@ function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['
         </Space>
       }
     >
-      <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 'var(--ant-margin-sm)' }}>
         <Tag color={pool.status === 'ACTIVE' ? 'success' : 'default'}>
           {pool.status === 'ACTIVE' ? '启用' : '停用'}
         </Tag>
       </Flex>
 
-      <Flex justify="space-between" style={{ marginBottom: 8 }}>
+      <Flex justify="space-between" style={{ marginBottom: 'var(--ant-margin-sm)' }}>
         <Text type="secondary">商品数</Text>
         <Text strong>{pool.productIds.length}</Text>
       </Flex>
-      <Flex justify="space-between" style={{ marginBottom: 12 }}>
+      <Flex justify="space-between" style={{ marginBottom: 'var(--ant-margin-sm)' }}>
         <Text type="secondary">被使用</Text>
         <Text strong>{state.strategies.filter((s) => s.poolId === pool.id).length}</Text>
       </Flex>
@@ -251,7 +251,7 @@ function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['
       <Paragraph
         type="secondary"
         ellipsis={{ rows: 2 }}
-        style={{ marginBottom: 12, fontSize: 13 }}
+        style={{ marginBottom: 'var(--ant-margin-sm)' }}
       >
         {pool.description ? (
           pool.description
@@ -260,7 +260,7 @@ function PoolCard({ pool, disabled }: { pool: ReturnType<typeof useAdminStore>['
         )}
       </Paragraph>
 
-      <div style={{ fontSize: 12, lineHeight: '20px' }}>
+      <div style={{ fontSize: 'var(--ant-font-size-sm)', lineHeight: '20px' }}>
         <Text type="secondary">
           创建：{pool.createdBy} · {formatDate(pool.createdAt)}
         </Text>

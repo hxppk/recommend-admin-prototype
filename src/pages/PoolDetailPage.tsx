@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
+  Avatar,
   Button,
   Card,
   Collapse,
@@ -185,23 +186,13 @@ export function PoolDetailPage() {
       key: 'product',
       render: (_, record) => (
         <Space>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 6,
-              background: record.accent,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 12,
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
+          <Avatar
+            size={40}
+            shape="square"
+            style={{ background: record.accent, color: '#fff', fontSize: 12, fontWeight: 600 }}
           >
             {record.name.slice(0, 2)}
-          </div>
+          </Avatar>
           <div>
             <div>{record.name}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.spuId}</Text>
@@ -608,22 +599,13 @@ export function PoolDetailPage() {
               >
                 <List.Item.Meta
                   avatar={
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 6,
-                        background: product.accent,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
+                    <Avatar
+                      size={36}
+                      shape="square"
+                      style={{ background: product.accent, color: '#fff', fontSize: 11, fontWeight: 600 }}
                     >
                       {product.name.slice(0, 2)}
-                    </div>
+                    </Avatar>
                   }
                   title={product.name}
                   description={`${product.spuId} · ${product.category} · ¥${product.price}`}
@@ -707,11 +689,11 @@ export function PoolDetailPage() {
                         return false
                       }}
                     >
-                      <p style={{ padding: '12px 0' }}>
-                        <UploadOutlined style={{ fontSize: 24, color: '#999' }} />
+                      <p style={{ padding: 'var(--ant-padding-sm) 0' }}>
+                        <UploadOutlined style={{ fontSize: 24, color: 'var(--ant-color-text-quaternary)' }} />
                       </p>
-                      <p style={{ color: '#666' }}>点击或拖拽文件到此区域</p>
-                      <p style={{ color: '#999', fontSize: 12 }}>支持 .csv 文件，.xlsx 需先导出为 CSV</p>
+                      <p style={{ color: 'var(--ant-color-text-secondary)' }}>点击或拖拽文件到此区域</p>
+                      <p style={{ color: 'var(--ant-color-text-quaternary)', fontSize: 'var(--ant-font-size-sm)' }}>支持 .csv 文件，.xlsx 需先导出为 CSV</p>
                     </Upload.Dragger>
                   </Flex>
                 ),
@@ -730,42 +712,42 @@ export function PoolDetailPage() {
           {uniqueTokens.length > 0 && (
             <Flex gap={24}>
               <div style={{ flex: 1 }}>
-                <Text strong style={{ color: '#52c41a' }}>
+                <Text strong style={{ color: 'var(--ant-color-success)' }}>
                   有效 ({effectiveProducts.length})
                 </Text>
                 {effectiveProducts.map((p) => (
-                  <div key={p.id} style={{ fontSize: 13, marginTop: 4 }}>
+                  <div key={p.id} style={{ fontSize: 'var(--ant-font-size-sm)', marginTop: 4 }}>
                     {p.name}（{p.spuId}）
                   </div>
                 ))}
                 {effectiveProducts.length === 0 && (
-                  <Text type="secondary" style={{ fontSize: 13 }}>暂无</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--ant-font-size-sm)' }}>暂无</Text>
                 )}
               </div>
               <div style={{ flex: 1 }}>
-                <Text strong style={{ color: '#faad14' }}>
+                <Text strong style={{ color: 'var(--ant-color-warning)' }}>
                   重复 ({duplicateProducts.length})
                 </Text>
                 {duplicateProducts.map((p) => (
-                  <div key={p.id} style={{ fontSize: 13, marginTop: 4 }}>
+                  <div key={p.id} style={{ fontSize: 'var(--ant-font-size-sm)', marginTop: 4 }}>
                     {p.name}（{p.spuId}）
                   </div>
                 ))}
                 {duplicateProducts.length === 0 && (
-                  <Text type="secondary" style={{ fontSize: 13 }}>暂无</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--ant-font-size-sm)' }}>暂无</Text>
                 )}
               </div>
               <div style={{ flex: 1 }}>
-                <Text strong style={{ color: '#ff4d4f' }}>
+                <Text strong style={{ color: 'var(--ant-color-error)' }}>
                   无效 ({invalidTokens.length})
                 </Text>
                 {invalidTokens.map((token) => (
-                  <div key={token} style={{ fontSize: 13, marginTop: 4 }}>
+                  <div key={token} style={{ fontSize: 'var(--ant-font-size-sm)', marginTop: 4 }}>
                     {token}
                   </div>
                 ))}
                 {invalidTokens.length === 0 && (
-                  <Text type="secondary" style={{ fontSize: 13 }}>暂无</Text>
+                  <Text type="secondary" style={{ fontSize: 'var(--ant-font-size-sm)' }}>暂无</Text>
                 )}
               </div>
             </Flex>

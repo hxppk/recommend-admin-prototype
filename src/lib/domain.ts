@@ -10,7 +10,7 @@ import type {
   StoreLocation,
 } from './types'
 
-const NOW = '2026-03-16T12:00:00+08:00'
+const NOW = '2026-04-15T12:00:00+08:00'
 
 export function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`
@@ -257,42 +257,154 @@ function pickProductFromStrategy(
   }
 }
 
+function buildMissedDiagnosis(
+  state: AdminState,
+  storeId: string,
+  segments: import('./types').AudienceSegment[],
+) {
+  const statusLabel: Record<string, string> = {
+    DRAFT: '草稿',
+    PAUSED: '已暂停',
+    PUBLISHED: '已发布',
+    ENDED: '已结束',
+  }
+
+  return state.plans
+    .filter((plan) => plan.status !== 'ENDED')
+    .map((plan) => {
+      const reasons: string[] = []
+
+      if (plan.status === 'DRAFT') reasons.push('计划处于草稿状态')
+      if (plan.status === 'PAUSED') reasons.push('计划已暂停')
+
+      const now = new Date(NOW).getTime()
+      const start = new Date(plan.startAt).getTime()
+      const end = new Date(plan.endAt).getTime()
+      if (plan.status === 'PUBLISHED' && start > now) reasons.push('投放时间未到达')
+      if (plan.status === 'PUBLISHED' && end < now) reasons.push('投放时间已过期')
+
+      const planStores = storeIdsForPlan(plan, state.stores)
+      if (!planStores.includes(storeId)) {
+        if (plan.storeScope.type === 'REGION') reasons.push('门店范围不匹配（区域限制）')
+        else if (plan.storeScope.type === 'STORE') reasons.push('门店范围不匹配（指定门店）')
+        else reasons.push('门店范围不匹配')
+      }
+
+      if (plan.audienceScope.type === 'SEGMENT') {
+        const currentIds = new Set(segments.map((s) => s.id))
+        const matched = plan.audienceScope.segmentIds.some((id) => currentIds.has(id))
+        if (!matched) reasons.push('人群 Segment 不匹配')
+      }
+
+      if (!plan.combinationId) reasons.push('未绑定策略组合')
+
+      return {
+        planId: plan.id,
+        planName: plan.name,
+        status: statusLabel[plan.status] ?? plan.status,
+        reasons,
+      }
+    })
+    .filter((item) => item.reasons.length > 0)
+}
+
+function buildFallbackSlots(
+  state: AdminState,
+  slotId?: string,
+): import('./types').PreviewSlotResult[] {
+  const hotStrategy = state.strategies.find((s) => s.id === 'strategy-hot-all')
+  if (!hotStrategy) {
+    return [{
+      slotId: 'fallback-empty',
+      slotIndex: 1,
+      product: null,
+      strategyId: null,
+      strategyName: '兜底策略',
+      poolId: null,
+      rank: null,
+      fallbackUsed: false,
+      reason: '无可用兜底策略',
+      skipReasons: [],
+    }]
+  }
+
+  const ranked = getStrategyProducts(state, hotStrategy).slice(0, 4)
+  const slotName = slotId
+    ? `资源位 ${slotId}`
+    : '热销兜底'
+  return ranked.map((product, index) => ({
+    slotId: `fallback-${slotId ?? 'default'}-${index}`,
+    slotIndex: index + 1,
+    product,
+    strategyId: hotStrategy.id,
+    strategyName: slotName,
+    poolId: hotStrategy.poolId,
+    rank: index + 1,
+    fallbackUsed: false,
+    reason: `${hotStrategy.name} 第 ${index + 1} 名`,
+    skipReasons: [],
+  }))
+}
+
 export function simulatePreview(
   state: AdminState,
   storeId: string,
   userId: string,
+  slotId?: string,
 ): PreviewResult {
   const store = state.stores.find((item) => item.id === storeId) ?? null
   const segments = inferSegments(state, userId)
+
+  // Debug: trace filter steps
+  console.log('[Preview] NOW =', NOW, 'storeId =', storeId, 'userId =', userId, 'slotId =', slotId)
+  state.plans.filter((p) => p.status !== 'ENDED').forEach((plan) => {
+    const timeOk = getTimeStatus(plan) === '投放中'
+    const slotOk = !slotId || (plan.slotIds ?? []).includes(slotId)
+    const storeOk = planMatchesStore(plan, storeId, state.stores)
+    const audienceOk = planMatchesAudience(plan, segments)
+    console.log(`[Preview] plan="${plan.name}" time=${timeOk} slot=${slotOk} store=${storeOk} audience=${audienceOk} slotIds=${JSON.stringify(plan.slotIds)}`)
+  })
+
   const eligiblePlans = state.plans
     .filter((plan) => getTimeStatus(plan) === '投放中')
+    .filter((plan) => !slotId || (plan.slotIds ?? []).includes(slotId))
     .filter((plan) => planMatchesStore(plan, storeId, state.stores))
     .filter((plan) => planMatchesAudience(plan, segments))
     .sort((left, right) => (right.priority ?? -1) - (left.priority ?? -1))
 
+  console.log('[Preview] eligiblePlans =', eligiblePlans.map((p) => p.name))
+
   const plan = eligiblePlans[0] ?? null
   if (!plan || !plan.combinationId) {
+    const missedPlans = buildMissedDiagnosis(state, storeId, segments)
+    const fallbackSlots = buildFallbackSlots(state, slotId)
     return {
       plan: null,
       groupName: null,
       store,
       inferredSegments: segments,
-      slots: [],
+      slots: fallbackSlots,
       technicalTrace: [],
       missReason: '未命中任何有效投放计划，可能是门店范围、人群范围或生效时间未满足。',
+      missedPlans,
+      isFallback: true,
     }
   }
 
   const combination = state.combinations.find((item) => item.id === plan.combinationId)
   if (!combination) {
+    const missedPlans = buildMissedDiagnosis(state, storeId, segments)
+    const fallbackSlots = buildFallbackSlots(state, slotId)
     return {
       plan: null,
       groupName: null,
       store,
       inferredSegments: segments,
-      slots: [],
+      slots: fallbackSlots,
       technicalTrace: [],
       missReason: '命中计划缺少对应策略组合。',
+      missedPlans,
+      isFallback: true,
     }
   }
 
@@ -382,7 +494,9 @@ export function getMetricSummary(state: AdminState, metric: DashboardMetric, pla
     return planMatch && storeMatch
   })
 
-  const values = filtered.map((point) => point[metric])
+  const values = filtered
+    .map((point) => point[metric])
+    .filter((v): v is number => v != null && !Number.isNaN(v))
   const average =
     values.reduce((total, current) => total + current, 0) / Math.max(values.length, 1)
   const trendBase = values.slice(0, Math.max(1, Math.floor(values.length / 2)))
@@ -411,17 +525,20 @@ export function getDashboardSeries(
   })
 
   return filtered.reduce<Array<Record<string, string | number>>>((accumulator, point) => {
+    const value = point[metric]
+    if (value == null || Number.isNaN(value)) return accumulator
+
     const row = accumulator.find((item) => item.date === point.date)
     const plan = state.plans.find((item) => item.id === point.planId)
     const key = plan?.name ?? point.planId
     if (row) {
-      row[key] = Number(point[metric].toFixed(metric === 'exposure' ? 0 : 2))
+      row[key] = Number(value.toFixed(metric === 'exposure' ? 0 : 2))
       return accumulator
     }
 
     accumulator.push({
       date: point.date,
-      [key]: Number(point[metric].toFixed(metric === 'exposure' ? 0 : 2)),
+      [key]: Number(value.toFixed(metric === 'exposure' ? 0 : 2)),
     })
     return accumulator
   }, [])
@@ -437,7 +554,7 @@ export function getAbTestTable(state: AdminState, planIds: string[]) {
         planName: plan.name,
         name: group.name,
         ctr: (9.2 + index * 0.7).toFixed(2),
-        vacancy: (2.1 - index * 0.15).toFixed(2),
+        cvr: (3.1 - index * 0.2).toFixed(2),
         exposure: 10234 + index * 640,
         significance: index === 0 ? '基线' : '95% 显著',
       })),

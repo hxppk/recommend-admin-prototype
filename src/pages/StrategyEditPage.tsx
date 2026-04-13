@@ -11,6 +11,7 @@ import {
   ToolOutlined,
   UpOutlined,
   DownOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
 import {
   Alert,
@@ -18,16 +19,20 @@ import {
   Button,
   Card,
   Col,
+  DatePicker,
   Empty,
   Flex,
   Form,
   Input,
+  InputNumber,
   List,
   Modal,
   Result,
   Row,
   Select,
   Space,
+  Switch,
+  Table,
   Tag,
   Tooltip,
   Typography,
@@ -50,6 +55,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { createId } from '../lib/domain'
+import type { ManualBoostItem } from '../lib/types'
 import { useEffect, useState, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { detectStrategyCycle, getPoolProducts, productMap } from '../lib/domain'
@@ -77,6 +86,13 @@ const modeMeta: Record<Strategy['mode'], { title: string; desc: string; icon: Re
     icon: <ToolOutlined />,
     tag: 'MANUAL',
   },
+  PERSONALIZED: {
+    title: '个性化推荐',
+    desc: '根据用户消费行为和偏好，综合预估 CTR/CVR 进行排序。此模式无需运营配置参数，由系统自动计算。',
+    icon: <StarOutlined />,
+    tag: 'PERSONALIZED',
+    color: 'cyan',
+  },
 }
 
 const sortDimensionOptions = [
@@ -89,6 +105,93 @@ const timeWindowOptions = [
   { label: '近 14 天', value: '14D' },
   { label: '近 30 天', value: '30D' },
 ]
+
+function boostColumnsFor(state: ReturnType<typeof useAdminStore>['state'], readonly: boolean, onUpdate: (id: string, patch: Partial<ManualBoostItem>) => void, onRemove: (id: string) => void): ColumnsType<ManualBoostItem> {
+  return [
+    {
+      title: '商品',
+      dataIndex: 'productId',
+      key: 'productId',
+      width: 240,
+      render: (productId: string, record: ManualBoostItem) => (
+        <Select
+          value={productId || undefined}
+          placeholder="搜索选择商品"
+          showSearch
+          disabled={readonly}
+          onChange={(v) => onUpdate(record.id, { productId: v })}
+          options={state.products.map((p) => ({
+            label: `${p.name}（${p.spuId}）`,
+            value: p.id,
+          }))}
+          style={{ width: '100%' }}
+          filterOption={(input, option) =>
+            (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+          }
+        />
+      ),
+    },
+    {
+      title: '加权系数',
+      dataIndex: 'weight',
+      key: 'weight',
+      width: 140,
+      render: (weight: number, record: ManualBoostItem) => (
+        <InputNumber
+          value={weight}
+          min={-1}
+          max={1}
+          step={0.05}
+          precision={2}
+          disabled={readonly}
+          onChange={(v) => onUpdate(record.id, { weight: v ?? 0 })}
+          style={{ width: '100%' }}
+          addonBefore={weight > 0 ? '+' : ''}
+        />
+      ),
+    },
+    {
+      title: '生效时间',
+      key: 'dateRange',
+      width: 260,
+      render: (_: unknown, record: ManualBoostItem) => (
+        <Space size={4}>
+          <DatePicker
+            value={record.startAt ? dayjs(record.startAt) : null}
+            disabled={readonly}
+            onChange={(d) => onUpdate(record.id, { startAt: d ? d.format('YYYY-MM-DD') : '' })}
+            style={{ width: 120 }}
+            placeholder="开始"
+          />
+          <Typography.Text type="secondary">~</Typography.Text>
+          <DatePicker
+            value={record.endAt ? dayjs(record.endAt) : null}
+            disabled={readonly}
+            onChange={(d) => onUpdate(record.id, { endAt: d ? d.format('YYYY-MM-DD') : '' })}
+            style={{ width: 120 }}
+            placeholder="结束"
+          />
+        </Space>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 60,
+      align: 'center',
+      render: (_: unknown, record: ManualBoostItem) => (
+        <Button
+          type="text"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          disabled={readonly}
+          onClick={() => onRemove(record.id)}
+        />
+      ),
+    },
+  ]
+}
 
 // 表单数据类型
 interface StrategyFormValues {
@@ -103,13 +206,40 @@ interface StrategyFormValues {
 }
 
 export function StrategyEditPage() {
+  const { id = '' } = useParams()
+  const { state } = useAdminStore()
+  const strategy = state.strategies.find((item) => item.id === id)
+
+  // 在 hooks 之前检查 strategy 是否存在
+  if (!strategy) {
+    return <StrategyNotFound />
+  }
+
+  return <StrategyEditor strategy={strategy} />
+}
+
+function StrategyNotFound() {
+  const navigate = useNavigate()
+  return (
+    <Result
+      status="404"
+      title="策略不存在"
+      subTitle="请返回策略列表重新选择。"
+      extra={
+        <Button type="primary" onClick={() => navigate('/strategies')}>
+          返回列表
+        </Button>
+      }
+    />
+  )
+}
+
+function StrategyEditor({ strategy }: { strategy: Strategy }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { id = '' } = useParams()
   const { state, updateStrategy, deleteStrategy } = useAdminStore()
-  const strategy = state.strategies.find((item) => item.id === id)
-  const isSystem = strategy?.kind === 'SYSTEM'
-  const isOwner = strategy?.createdBy === CURRENT_USER
+  const isSystem = strategy.kind === 'SYSTEM'
+  const isOwner = strategy.createdBy === CURRENT_USER
   const isNew = (location.state as { isNew?: boolean })?.isNew ?? false
   const [isEditing, setIsEditing] = useState(isNew)
 
@@ -118,19 +248,12 @@ export function StrategyEditPage() {
   const readonly = !isEditing
 
   // 追踪表单字段变化（用于条件渲染和依赖逻辑）
-  const [mode, setMode] = useState<Strategy['mode'] | null>(strategy?.mode ?? null)
-  const [selectedPoolId, setSelectedPoolId] = useState(strategy?.poolId ?? '')
-  const [fallbackId, setFallbackId] = useState<string | undefined>(strategy?.fallbackStrategyId || undefined)
+  const [mode, setMode] = useState<Strategy['mode'] | null>(strategy.mode ?? null)
+  const [selectedPoolId, setSelectedPoolId] = useState(strategy.poolId ?? '')
+  const [fallbackId, setFallbackId] = useState<string | undefined>(strategy.fallbackStrategyId || undefined)
 
   // 构建表单初始值
   const formInitialValues: StrategyFormValues = useMemo(() => {
-    if (!strategy) return {
-      name: '',
-      description: '',
-      poolId: '',
-      mode: 'HOT' as const,
-      status: 'ACTIVE' as const,
-    }
     return {
       name: strategy.name,
       description: strategy.description || '',
@@ -141,7 +264,7 @@ export function StrategyEditPage() {
       fallbackStrategyId: strategy.fallbackStrategyId || undefined,
       status: strategy.status,
     }
-  }, [strategy?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [strategy.id])
 
   // 初始化模式和选品池
   useEffect(() => {
@@ -150,7 +273,7 @@ export function StrategyEditPage() {
       setSelectedPoolId(strategy.poolId)
       setFallbackId(strategy.fallbackStrategyId || undefined)
     }
-  }, [strategy?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [strategy.id])
 
   // 表单挂载后填充值（useLayoutEffect 确保在 paint 前完成）
   useEffect(() => {
@@ -190,7 +313,7 @@ export function StrategyEditPage() {
   const [query, setQuery] = useState('')
 
   // MANUAL 模式：已选商品列表（使用本地 state 管理）
-  const [manualProductIds, setManualProductIds] = useState<string[]>(strategy?.manualProductIds || [])
+  const [manualProductIds, setManualProductIds] = useState<string[]>(strategy.manualProductIds || [])
   useEffect(() => {
     if (strategy) {
       setManualProductIds(strategy.manualProductIds)
@@ -207,27 +330,46 @@ export function StrategyEditPage() {
     .map((productId) => productsById[productId])
     .filter((product): product is typeof productsById[string] => Boolean(product))
 
-  if (!strategy) {
-    return (
-      <Result
-        status="404"
-        title="策略不存在"
-        subTitle="请返回策略列表重新选择。"
-        extra={
-          <Button type="primary" onClick={() => navigate('/strategies')}>
-            返回列表
-          </Button>
-        }
-      />
-    )
+  // 人工加权
+  const [manualBoostEnabled, setManualBoostEnabled] = useState(strategy.manualBoostEnabled ?? false)
+  const [manualBoostItems, setManualBoostItems] = useState<ManualBoostItem[]>(strategy.manualBoostItems ?? [])
+
+  useEffect(() => {
+    if (strategy) {
+      setManualBoostEnabled(strategy.manualBoostEnabled ?? false)
+      setManualBoostItems(strategy.manualBoostItems ?? [])
+    }
+  }, [strategy?.id])
+
+  function handleAddBoostItem() {
+    setManualBoostItems((prev) => [
+      ...prev,
+      {
+        id: createId('boost'),
+        productId: '',
+        weight: 0,
+        startAt: '',
+        endAt: '',
+      },
+    ])
   }
+
+  function handleUpdateBoostItem(id: string, patch: Partial<ManualBoostItem>) {
+    setManualBoostItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+  }
+
+  function handleRemoveBoostItem(id: string) {
+    setManualBoostItems((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  const boostColumns = boostColumnsFor(state, readonly, handleUpdateBoostItem, handleRemoveBoostItem)
 
   function handleSave() {
     form
       .validateFields()
       .then((values) => {
         const updated: Strategy = {
-          ...strategy!,
+          ...strategy,
           name: values.name,
           description: values.description || '',
           poolId: values.poolId,
@@ -237,8 +379,10 @@ export function StrategyEditPage() {
           fallbackStrategyId: values.fallbackStrategyId || null,
           manualProductIds: manualProductIds,
           filterUnavailable: true,
+          manualBoostEnabled,
+          manualBoostItems: manualBoostItems.filter((item) => item.productId),
         }
-        updateStrategy(strategy!.id, updated)
+        updateStrategy(strategy.id, updated)
         message.success('保存成功')
         navigate('/strategies')
       })
@@ -249,12 +393,14 @@ export function StrategyEditPage() {
 
   function handleCancel() {
     if (isNew) {
-      deleteStrategy(strategy!.id)
+      deleteStrategy(strategy.id)
       navigate('/strategies')
       return
     }
     form.resetFields()
-    setManualProductIds(strategy?.manualProductIds || [])
+    setManualProductIds(strategy.manualProductIds || [])
+    setManualBoostEnabled(strategy.manualBoostEnabled ?? false)
+    setManualBoostItems(strategy.manualBoostItems ?? [])
     setIsEditing(false)
   }
 
@@ -262,19 +408,19 @@ export function StrategyEditPage() {
     if (!strategy) return
     updateStrategy(strategy.id, {
       ...strategy!,
-      status: strategy!.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+      status: strategy.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
     })
   }
 
   function handleDelete() {
     Modal.confirm({
       title: '确认删除',
-      content: `确认删除策略「${strategy!.name}」吗？`,
+      content: `确认删除策略「${strategy.name}」吗？`,
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
       onOk: () => {
-        deleteStrategy(strategy!.id)
+        deleteStrategy(strategy.id)
         navigate('/strategies')
       },
     })
@@ -442,9 +588,9 @@ export function StrategyEditPage() {
             <Radio.Group
               onChange={(e) => setMode(e.target.value)}
               value={mode}
-              style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}
+              style={{ display: 'flex', flexWrap: 'nowrap', gap: 12 }}
             >
-              {(['HOT', 'NEW', 'MANUAL'] as const).map((m) => {
+              {(['HOT', 'NEW', 'MANUAL', 'PERSONALIZED'] as const).map((m) => {
                 const meta = modeMeta[m]
                 const isSelected = mode === m
                 return (
@@ -453,26 +599,34 @@ export function StrategyEditPage() {
                     style={{
                       flex: 1,
                       minWidth: 220,
+                      minHeight: 120,
                       padding: 16,
                       borderRadius: 8,
-                      border: `1px solid ${isSelected ? '#1677ff' : '#d9d9d9'}`,
-                      background: isSelected ? '#e6f4ff' : '#ffffff',
+                      border: isSelected ? '1px solid #1677ff' : '1px solid #e8e8e8',
+                      background: isSelected ? '#f0f5ff' : '#fafafa',
                       cursor: readonly ? 'default' : 'pointer',
                       position: 'relative',
-                      transition: 'border-color 0.2s',
+                      transition: 'all 0.2s',
+                      boxSizing: 'border-box',
                     }}
                     onClick={() => {
-                      if (readonly) return
+                      if (readonly || isSelected) return
                       setMode(m)
                       form.setFieldValue('mode', m)
                     }}
                     onMouseEnter={(e) => {
                       if (readonly || isSelected) return
-                      ;(e.currentTarget as HTMLDivElement).style.borderColor = '#1677ff'
+                      const el = e.currentTarget as HTMLDivElement
+                      el.style.borderColor = '#1677ff'
+                      el.style.background = '#fff'
+                      el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'
                     }}
                     onMouseLeave={(e) => {
                       if (readonly || isSelected) return
-                      ;(e.currentTarget as HTMLDivElement).style.borderColor = '#d9d9d9'
+                      const el = e.currentTarget as HTMLDivElement
+                      el.style.borderColor = '#e8e8e8'
+                      el.style.background = '#fafafa'
+                      el.style.boxShadow = 'none'
                     }}
                   >
                     {isSelected && (
@@ -496,22 +650,38 @@ export function StrategyEditPage() {
                     <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
                       <Space>
                         {meta.icon}
-                        <Typography.Text
-                          strong
-                          style={{ color: isSelected ? '#1677ff' : undefined }}
-                        >
+                        <Typography.Text strong>
                           {meta.title}
                         </Typography.Text>
                       </Space>
-                      {meta.tag === 'MANUAL' ? (
+                      {isSelected ? (
+                        <Tag color="blue">{meta.tag}</Tag>
+                      ) : meta.tag === 'MANUAL' ? (
                         <Tag>{meta.tag}</Tag>
                       ) : (
                         <Tag color={meta.color}>{meta.tag}</Tag>
                       )}
                     </Flex>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {meta.desc}
-                    </Typography.Text>
+                    {isSelected || m !== 'PERSONALIZED' ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {meta.desc}
+                      </Typography.Text>
+                    ) : (
+                      <Tooltip title={meta.desc}>
+                        <div
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            fontSize: 12,
+                            color: 'var(--ant-color-text-secondary)',
+                          }}
+                        >
+                          {meta.desc}
+                        </div>
+                      </Tooltip>
+                    )}
                   </div>
                 )
               })}
@@ -522,26 +692,48 @@ export function StrategyEditPage() {
           <Form.Item noStyle shouldUpdate>
             {() =>
               mode === 'HOT' && (
-                <Row gutter={24} style={{ marginTop: 16 }}>
-                  <Col span={12}>
-                    <Form.Item
-                      label="排序维度"
-                      name="sortDimension"
-                      rules={[{ required: true, message: '请选择排序维度' }]}
-                    >
-                      <Select options={sortDimensionOptions} />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      label="时间窗口"
-                      name="timeWindow"
-                      rules={[{ required: true, message: '请选择时间窗口' }]}
-                    >
-                      <Select options={timeWindowOptions} />
-                    </Form.Item>
-                  </Col>
-                </Row>
+                <div style={{ marginTop: 16 }}>
+                  <Typography.Text
+                    strong
+                    style={{
+                      fontSize: 13,
+                      color: 'var(--ant-color-text-secondary)',
+                      marginBottom: 12,
+                      display: 'block',
+                    }}
+                  >
+                    热销排行配置
+                  </Typography.Text>
+                  <div
+                    style={{
+                      background: '#f5f5f5',
+                      borderRadius: 8,
+                      padding: 16,
+                      borderLeft: '4px solid #1677ff',
+                    }}
+                  >
+                    <Row gutter={24}>
+                      <Col span={12}>
+                        <Form.Item
+                          label="排序维度"
+                          name="sortDimension"
+                          rules={[{ required: true, message: '请选择排序维度' }]}
+                        >
+                          <Select options={sortDimensionOptions} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item
+                          label="时间窗口"
+                          name="timeWindow"
+                          rules={[{ required: true, message: '请选择时间窗口' }]}
+                        >
+                          <Select options={timeWindowOptions} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
+                </div>
               )
             }
           </Form.Item>
@@ -577,7 +769,7 @@ export function StrategyEditPage() {
                       style={{ height: 480 }}
                       bodyStyle={{ height: 'calc(100% - 48px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
                     >
-                      <div style={{ padding: '12px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                      <div style={{ padding: 'var(--ant-padding-sm) var(--ant-padding)', borderBottom: '1px solid var(--ant-color-border-split)' }}>
                         <Input.Search
                           placeholder="搜索商品"
                           allowClear
@@ -664,6 +856,71 @@ export function StrategyEditPage() {
               )
             }
           </Form.Item>
+
+          {/* PERSONALIZED 模式说明 */}
+          <Form.Item noStyle shouldUpdate>
+            {() =>
+              mode === 'PERSONALIZED' && (
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginTop: 16 }}
+                  message="个性化推荐模式"
+                  description="系统将基于用户历史消费行为、偏好画像，结合 CTR（点击率）和 CVR（购买率）预估模型进行综合排序，无需额外配置参数。"
+                />
+              )
+            }
+          </Form.Item>
+        </Card>
+
+        {/* 人工加权模块 */}
+        <Card
+          title="人工加权"
+          bordered
+          style={{ marginBottom: 24 }}
+          extra={
+            <Flex align="center" gap={8}>
+              <Switch
+                checked={manualBoostEnabled}
+                onChange={setManualBoostEnabled}
+                disabled={readonly}
+              />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                开启人工加权
+              </Typography.Text>
+            </Flex>
+          }
+        >
+          {manualBoostEnabled ? (
+            <Flex vertical gap={16}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                对具体商品进行排序加权调整，不影响基础排序逻辑
+              </Typography.Text>
+
+              {/* 加权列表 */}
+              <Table<ManualBoostItem>
+                columns={boostColumns}
+                dataSource={manualBoostItems}
+                rowKey="id"
+                pagination={false}
+                size="small"
+                locale={{ emptyText: '暂无加权配置，点击下方按钮添加' }}
+              />
+
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={handleAddBoostItem}
+                disabled={readonly}
+              >
+                添加商品加权
+              </Button>
+            </Flex>
+          ) : (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              开启后可对具体商品进行排序加权调整，不影响基础排序逻辑
+            </Typography.Text>
+          )}
         </Card>
 
         {/* 区域三：高级配置 */}
@@ -742,9 +999,9 @@ function ManualSortRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id })
 
   const style: React.CSSProperties = {
-    padding: '12px 16px',
-    borderBottom: '1px solid #f0f0f0',
-    background: isDragging ? '#e6f4ff' : '#fff',
+    padding: 'var(--ant-padding-sm) var(--ant-padding)',
+    borderBottom: '1px solid var(--ant-color-border-split)',
+    background: isDragging ? 'var(--ant-color-primary-bg-hover)' : 'var(--ant-color-bg-container)',
     opacity: isDragging ? 0.5 : 1,
     transition,
     transform: transform ? CSS.Translate.toString(transform) : undefined,
@@ -758,13 +1015,13 @@ function ManualSortRow({
           <span
             {...attributes}
             {...listeners}
-            style={{ cursor: 'grab', color: '#bfbfbf', fontSize: 16, flexShrink: 0 }}
+            style={{ cursor: 'grab', color: 'var(--ant-color-text-quaternary)', fontSize: 16, flexShrink: 0 }}
           >
             <HolderOutlined />
           </span>
         )}
         {/* 序号 */}
-        <Avatar size="small" style={{ background: '#f0f0f0', color: '#666', flexShrink: 0 }}>
+        <Avatar size="small" style={{ background: 'var(--ant-color-fill-quaternary)', color: 'var(--ant-color-text-secondary)', flexShrink: 0 }}>
           {index + 1}
         </Avatar>
         {/* 商品信息 */}

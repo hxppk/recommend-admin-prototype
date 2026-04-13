@@ -223,6 +223,7 @@ const plans: Plan[] = [
     version: 3,
     storeScope: { type: 'ALL', regionIds: [], storeIds: [] },
     audienceScope: { type: 'ALL', segmentIds: [] },
+    slotIds: ['slot-order-left', 'slot-home-top', 'slot-home-guess'],
     abTest: {
       enabled: true,
       experimentKey: 'order-reco-lunch',
@@ -238,8 +239,8 @@ const plans: Plan[] = [
     createdBy: '张运营',
     status: 'PUBLISHED',
     priority: 70,
-    startAt: '2026-04-15T00:00',
-    endAt: '2026-06-10T23:59',
+    startAt: '2026-04-01T00:00',
+    endAt: '2026-05-31T23:59',
     scene: 'ORDER_RECOMMEND',
     combinationId: 'comb-home-core',
     version: 2,
@@ -372,6 +373,7 @@ function buildSeries(): DashboardPoint[] {
   const groups = ['全部流量', '实验组']
 
   days.forEach((date, dayIndex) => {
+    const decay = 1 - dayIndex / 14 * 0.8
     publishedPlans.forEach((plan, planIndex) => {
       stores.forEach((store, storeIndex) => {
         groups.forEach((group, groupIndex) => {
@@ -380,9 +382,18 @@ function buildSeries(): DashboardPoint[] {
             planId: plan.id,
             storeId: store.id,
             group,
-            ctr: 8.6 + planIndex * 0.9 + storeIndex * 0.35 + groupIndex * 0.25 + dayIndex * 0.12,
-            vacancy: 2.2 + planIndex * 0.4 + groupIndex * 0.15 + (dayIndex % 4) * 0.08,
-            exposure: 9800 + dayIndex * 320 + planIndex * 850 + storeIndex * 190 + groupIndex * 70,
+            ctr: Math.round(
+              (8.6 + planIndex * 0.9 + storeIndex * 0.35 + groupIndex * 0.25
+                + (Math.random() - 0.5) * 3.0 * decay) * 100,
+            ) / 100,
+            cvr: Math.round(
+              (2.1 + planIndex * 0.3 + storeIndex * 0.15 + groupIndex * 0.1
+                + (Math.random() - 0.5) * 1.0 * decay) * 100,
+            ) / 100,
+            exposure: Math.round(
+              9800 + planIndex * 850 + storeIndex * 190 + groupIndex * 70
+                + (Math.random() - 0.5) * 3000 * decay,
+            ),
           })
         })
       })

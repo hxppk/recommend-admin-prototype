@@ -1,11 +1,11 @@
 export type ProductStatus = 'ACTIVE' | 'INACTIVE'
 export type PoolStatus = 'ACTIVE' | 'INACTIVE'
-export type StrategyMode = 'HOT' | 'NEW' | 'MANUAL'
+export type StrategyMode = 'HOT' | 'NEW' | 'MANUAL' | 'PERSONALIZED'
 export type CombinationStatus = 'ACTIVE' | 'INACTIVE'
 export type PlanStatus = 'DRAFT' | 'PUBLISHED' | 'PAUSED' | 'ENDED'
 export type StoreScopeType = 'ALL' | 'REGION' | 'STORE'
 export type AudienceScopeType = 'ALL' | 'SEGMENT'
-export type DashboardMetric = 'ctr' | 'vacancy' | 'exposure'
+export type DashboardMetric = 'ctr' | 'cvr' | 'exposure'
 
 export interface Product {
   id: string
@@ -48,6 +48,16 @@ export interface Strategy {
   manualProductIds: string[]
   filterUnavailable: boolean
   kind: 'SYSTEM' | 'CUSTOM'
+  manualBoostItems?: ManualBoostItem[]
+  manualBoostEnabled?: boolean
+}
+
+export interface ManualBoostItem {
+  id: string
+  productId: string
+  weight: number
+  startAt: string
+  endAt: string
 }
 
 export interface CombinationSlot {
@@ -119,7 +129,7 @@ export interface DashboardPoint {
   storeId: string
   group: string
   ctr: number
-  vacancy: number
+  cvr: number
   exposure: number
 }
 
@@ -148,6 +158,13 @@ export interface PreviewSlotResult {
   skipReasons: string[]
 }
 
+export interface MissedPlanDiagnosis {
+  planId: string
+  planName: string
+  status: string
+  reasons: string[]
+}
+
 export interface PreviewResult {
   plan: Plan | null
   groupName: string | null
@@ -156,4 +173,6 @@ export interface PreviewResult {
   slots: PreviewSlotResult[]
   technicalTrace: Array<Record<string, string | number | boolean | null>>
   missReason?: string
+  missedPlans?: MissedPlanDiagnosis[]
+  isFallback?: boolean
 }

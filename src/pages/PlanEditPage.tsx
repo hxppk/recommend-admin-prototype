@@ -265,7 +265,7 @@ export function PlanEditPage() {
       <Card title="基础信息">
         <Flex gap="large">
           <Flex vertical gap="small" style={{ flex: 1 }}>
-            <Text><span style={{color: '#ff4d4f', marginRight: 4}}>*</span>计划名称</Text>
+            <Text><span style={{color: 'var(--ant-color-error)', marginRight: 4}}>*</span>计划名称</Text>
             <Input
               ref={nameInputRef}
               value={currentDraft.name}
@@ -315,7 +315,7 @@ export function PlanEditPage() {
               <Text type="secondary" style={{ fontSize: 12 }}>由列表页管理员统一配置</Text>
             </Flex>
             <Flex vertical gap="small" style={{ flex: 1 }}>
-              <Text><span style={{color: '#ff4d4f', marginRight: 4}}>*</span>投放资源位ID</Text>
+              <Text><span style={{color: 'var(--ant-color-error)', marginRight: 4}}>*</span>投放资源位ID</Text>
               <Select
                 mode="multiple"
                 value={currentDraft.slotIds ?? []}
@@ -524,7 +524,7 @@ export function PlanEditPage() {
             background: 'rgba(255,255,255,0.9)',
             backdropFilter: 'blur(8px)',
             padding: '12px 0',
-            borderTop: '1px solid #f0f0f0',
+            borderTop: '1px solid var(--ant-color-border-split)',
             marginTop: 24,
           }}
         >

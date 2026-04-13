@@ -39,7 +39,7 @@ export const CURRENT_USER_ROLE = 'ADMIN'
 
 const STORAGE_KEY = 'recommend-admin-store'
 const VERSION_KEY = 'recommend-admin-data-version'
-const DATA_VERSION = '20260410'
+const DATA_VERSION = '20260411v10'
 const AdminStoreContext = createContext<AdminStoreValue | null>(null)
 
 function replaceItem<T extends { id: string }>(items: T[], next: T) {
@@ -84,6 +84,8 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
       return initialState
     }
   })
+
+  console.log('[Store] plans slotIds check:', state.plans.map((p) => ({ name: p.name, slotIds: p.slotIds })))
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))

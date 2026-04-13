@@ -218,7 +218,7 @@ export function CombinationEditPage() {
                               ? {
                                   prevIndex,
                                   displayRank: posInGroup + 1,
-                                  color: groupColor ?? '#1677ff',
+                                  color: groupColor ?? 'var(--ant-color-primary)',
                                 }
                               : undefined}
                             onChange={(patch) => handleSlotChange(slot.id, patch)}
@@ -343,7 +343,7 @@ function SlotCard({
         transform: transform ? CSS.Translate.toString(transform) : undefined,
         transition,
         opacity: isDragging ? 0.5 : 1,
-        background: isDragging ? '#fafafa' : undefined,
+        background: isDragging ? 'var(--ant-color-fill-quaternary)' : undefined,
         position: 'relative',
       }}
     >
@@ -366,7 +366,7 @@ function SlotCard({
             <span
               {...attributes}
               {...listeners}
-              style={{ cursor: 'grab', color: '#bfbfbf', fontSize: 16, flexShrink: 0 }}
+              style={{ cursor: 'grab', color: 'var(--ant-color-text-quaternary)', fontSize: 16, flexShrink: 0 }}
             >
               <HolderOutlined />
             </span>
@@ -409,8 +409,8 @@ function SlotCard({
                 items: [
                   {
                     key: 'delete',
-                    label: <span style={{ color: '#ff4d4f' }}>删除坑位</span>,
-                    icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                    label: <span style={{ color: 'var(--ant-color-error)' }}>删除坑位</span>,
+                    icon: <DeleteOutlined style={{ color: 'var(--ant-color-error)' }} />,
                     disabled: disabledRemove,
                     onClick: onRemove,
                   },

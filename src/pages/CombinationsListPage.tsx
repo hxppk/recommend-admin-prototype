@@ -231,8 +231,8 @@ export function CombinationsListPage() {
                   },
                   {
                     key: 'delete',
-                    label: <span style={{ color: '#ff4d4f' }}>删除</span>,
-                    icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                    label: <span style={{ color: 'var(--ant-color-error)' }}>删除</span>,
+                    icon: <DeleteOutlined style={{ color: 'var(--ant-color-error)' }} />,
                     onClick: () => handleDelete(record),
                   },
                 ],
