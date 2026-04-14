@@ -114,6 +114,7 @@ export function CombinationEditPage() {
   }
 
   function handleSave() {
+    if (!draft) return
     if (!draft.name.trim()) {
       Modal.warning({
         title: '保存失败',
@@ -122,7 +123,7 @@ export function CombinationEditPage() {
       })
       return
     }
-    updateCombination(draft!.id, { ...draft!, name: draft.name.trim() })
+    updateCombination(draft.id, { ...draft, name: draft.name.trim() })
     navigate('/combinations')
   }
 
