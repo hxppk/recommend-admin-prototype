@@ -9,6 +9,7 @@ import {
 import {
   Button,
   Dropdown,
+  Empty,
   Input,
   InputNumber,
   Modal,
@@ -204,9 +205,10 @@ export function PlansListPage() {
       key: 'time',
       width: 220,
       render: (_: unknown, record: Plan) => (
-        <Text type="secondary">
-          {formatDate(record.startAt)} - {formatDate(record.endAt)}
-        </Text>
+        <Space direction="vertical" size={0}>
+          <Text>{formatDate(record.startAt)}</Text>
+          <Text type="secondary">{formatDate(record.endAt)}</Text>
+        </Space>
       ),
     },
     {
@@ -384,6 +386,7 @@ export function PlansListPage() {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        locale={{ emptyText: <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
         rowClassName={(record) => (record.conflicts.length ? 'ant-table-row-warning' : '')}
         onRow={(record) => {
           if (record.conflicts.length) {

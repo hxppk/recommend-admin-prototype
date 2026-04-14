@@ -5,6 +5,7 @@ import { CURRENT_USER, CURRENT_USER_ROLE, useAdminStore } from '../lib/store'
 import type { AbTestGroup, Plan, PlanStatus, AudienceScopeType } from '../lib/types'
 import {
   Alert,
+  Breadcrumb,
   Button,
   Card,
   DatePicker,
@@ -234,6 +235,14 @@ export function PlanEditPage() {
 
   return (
     <Flex vertical gap="large">
+      <Breadcrumb
+        items={[
+          { title: '推荐系统' },
+          { title: <a onClick={() => navigate('/plans')}>投放计划</a> },
+          { title: '编辑' },
+        ]}
+        style={{ marginBottom: 8 }}
+      />
       <Flex align="center" justify="space-between">
         <Flex align="center" gap="middle">
           <Button
@@ -335,7 +344,7 @@ export function PlanEditPage() {
                 onChange={(date) =>
                   setDraft({
                     ...currentDraft,
-                    startAt: date ? date.format('YYYY-MM-DDTHH:mm') : '',
+                    startAt: date ? date.format('YYYY-MM-DD HH:mm') : '',
                   })
                 }
                 style={{ width: '100%' }}
@@ -349,7 +358,7 @@ export function PlanEditPage() {
                 onChange={(date) =>
                   setDraft({
                     ...currentDraft,
-                    endAt: date ? date.format('YYYY-MM-DDTHH:mm') : '',
+                    endAt: date ? date.format('YYYY-MM-DD HH:mm') : '',
                   })
                 }
                 style={{ width: '100%' }}

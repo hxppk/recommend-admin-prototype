@@ -108,7 +108,7 @@ const experimentColumns: ColumnsType<{
     key: 'significance',
     width: 100,
     render: (text: string) => {
-      const color = text === '显著' || text === '95% 显著' ? 'green' : text === '基线' ? 'default' : 'orange'
+      const color = text === '显著' ? 'green' : text === '基线' ? 'default' : 'orange'
       return <Tag color={color}>{text}</Tag>
     },
   },
@@ -116,9 +116,9 @@ const experimentColumns: ColumnsType<{
 
 export function MonitoringPage() {
   const { state } = useAdminStore()
-  const [selectedPlans, setSelectedPlans] = useState<string[]>([])
+  const [selectedPlans, setSelectedPlans] = useState<string[]>(['plan-lunch'])
   const [activeMetric, setActiveMetric] = useState<string>('ctr')
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null)
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>([dayjs().subtract(1, 'day'), dayjs()])
 
   const series = state.dashboardSeries
 
@@ -129,53 +129,18 @@ export function MonitoringPage() {
     emptyRate: 0.0,
   }), [])
 
-  // 投放计划表格数据 — 全局 Top 3，不受下方筛选器影响
-  const planData = useMemo(() => {
-    const result = new Map<string, { planId: string; planName: string; ctr: number; cvr: number; exposure: number; status: string }>()
-    const mockCvr: Record<string, number> = {
-      'plan-lunch': 3.21,
-      'plan-new-user': 2.85,
-      'plan-coffee-airport': 2.45,
-      'plan-ended': 2.67,
-      'plan-weekend': 3.10,
-      'plan-autumn': 2.30,
-      'plan-summer': 2.95,
-    }
-    const mockCtr: Record<string, number> = {
-      'plan-lunch': 11.2,
-      'plan-new-user': 9.8,
-      'plan-coffee-airport': 8.5,
-      'plan-ended': 10.1,
-      'plan-weekend': 10.8,
-      'plan-autumn': 7.9,
-      'plan-summer': 9.3,
-    }
-    const mockExposure: Record<string, number> = {
-      'plan-lunch': 28500,
-      'plan-new-user': 19200,
-      'plan-coffee-airport': 8700,
-      'plan-ended': 22400,
-      'plan-weekend': 15600,
-      'plan-autumn': 6300,
-      'plan-summer': 18900,
-    }
-    for (const d of series) {
-      const plan = state.plans.find((p) => p.id === d.planId)
-      if (!result.has(d.planId)) {
-        result.set(d.planId, {
-          planId: d.planId,
-          planName: plan?.name ?? d.planId,
-          ctr: mockCtr[d.planId] ?? 9.0,
-          cvr: mockCvr[d.planId] ?? 2.5,
-          exposure: mockExposure[d.planId] ?? 10000,
-          status: plan?.status === 'PUBLISHED' ? '投放中' : plan?.status === 'PAUSED' ? '已暂停' : plan?.status === 'ENDED' ? '已结束' : '草稿',
-        })
-      }
-    }
-    return Array.from(result.values())
-      .sort((a, b) => b.exposure - a.exposure)
-      .slice(0, 3)
-  }, [series, state.plans])
+  // 投放计划曝光量 Top3 — 硬编码 mock，完全独立于 series
+  const planTableDataSource = [
+    { planId: 'plan-lunch', planName: '午高峰果茶加推', status: '投放中', ctr: 11.20, cvr: 3.21, exposure: 28500 },
+    { planId: 'plan-new-user', planName: '新用户首单推荐', status: '投放中', ctr: 9.80, cvr: 2.85, exposure: 19200 },
+    { planId: 'plan-autumn', planName: '秋季上新预热', status: '已暂停', ctr: 7.90, cvr: 2.30, exposure: 15800 },
+  ]
+
+  // 实验对比 — 硬编码 mock，完全独立于 planTableDataSource
+  const experimentTableDataSource = [
+    { key: 'exp-a', name: '对照组 A', traffic: 50, ctr: 8.2, cvr: 2.1, significance: '基线' },
+    { key: 'exp-b', name: '实验组 B（个性化推荐）', traffic: 50, ctr: 10.5, cvr: 2.8, significance: '显著' },
+  ]
 
   const planOptions = state.plans.map((p) => ({ label: p.name, value: p.id }))
 
@@ -203,12 +168,12 @@ export function MonitoringPage() {
       </Form>
 
       {/* ===== 第 2 行：投放计划效果表格（全局 Top 3，独立） ===== */}
-      <Card size="small" title="投放计划效果">
+      <Card size="small" title="投放计划曝光量 Top3">
         <Table
           columns={planTableColumns}
-          dataSource={planData}
+          dataSource={planTableDataSource}
           rowKey="planId"
-          pagination={false}
+          pagination={{ pageSize: 3, showSizeChanger: false, hideOnSinglePage: true }}
           size="small"
           locale={{ emptyText: '暂无数据' }}
         />
@@ -260,9 +225,8 @@ export function MonitoringPage() {
             <Statistic
               title="归因 GMV"
               value={metrics.totalExposure * 0.5}
-              prefix={<ArrowUpOutlined style={{ color: '#3f8600' }} />}
+              prefix="¥"
               valueStyle={{ color: '#3f8600' }}
-              suffix="¥"
               precision={0}
             />
           </Card>
@@ -306,10 +270,7 @@ export function MonitoringPage() {
       <Card size="small" title="实验对比">
         <Table
           columns={experimentColumns}
-          dataSource={[
-            { key: 'exp-a', name: '对照组 A', traffic: 50, ctr: 8.2, cvr: 2.1, significance: '基线' },
-            { key: 'exp-b', name: '实验组 B（个性化推荐）', traffic: 50, ctr: 10.5, cvr: 2.8, significance: '显著' },
-          ]}
+          dataSource={experimentTableDataSource}
           rowKey="key"
           pagination={false}
           size="small"
@@ -376,15 +337,15 @@ function TrendChart({ data, metric }: { data: DashboardPoint[]; metric: string }
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
 
-  // Grid lines (5 horizontal)
+  // Grid lines (5 horizontal) — clip labels that would overflow
   const gridLines = Array.from({ length: 5 }, (_, i) => {
     const y = padTop + (plotH / 4) * i
     const val = maxVal - (range / 4) * i
-    return { y, label: Math.round(val * 100) / 100 }
+    return { y, label: i === 4 && minVal === 0 ? '0' : Math.round(val * 100) / 100 }
   })
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%' }}>
+    <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
       {/* Grid */}
       {gridLines.map((g, i) => (
         <g key={i}>

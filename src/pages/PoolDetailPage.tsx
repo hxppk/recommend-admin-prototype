@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Avatar,
+  Breadcrumb,
   Button,
   Card,
   Collapse,
@@ -272,6 +273,14 @@ export function PoolDetailPage() {
 
   return (
     <Flex vertical gap={24}>
+      <Breadcrumb
+        items={[
+          { title: '推荐系统' },
+          { title: <a onClick={() => navigate('/pools')}>商品选品池</a> },
+          { title: '详情' },
+        ]}
+        style={{ marginBottom: 8 }}
+      />
       {/* 返回导航 */}
       <Flex align="center" gap={12}>
         <Button

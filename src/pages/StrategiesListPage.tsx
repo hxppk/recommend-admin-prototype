@@ -5,7 +5,7 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { Button, Dropdown, Input, Modal, Popover, Row, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Dropdown, Empty, Input, Modal, Popover, Row, Select, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -17,6 +17,7 @@ const modeTag: Record<Strategy['mode'], { color: string; label: string }> = {
   HOT: { color: 'orange', label: '热销模型 Hot' },
   NEW: { color: 'blue', label: '新品曝光 New' },
   MANUAL: { color: 'purple', label: '人工定序 Manual' },
+  PERSONALIZED: { color: 'geekblue', label: '个性化推荐 Personalized' },
 }
 
 export function StrategiesListPage() {
@@ -121,28 +122,34 @@ export function StrategiesListPage() {
         if (refs.length === 0) return <Typography.Text type="secondary">—</Typography.Text>
         if (refs.length === 1) {
           return (
-            <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/combinations/${refs[0].id}`)}>
-              {refs[0].name}
-            </Button>
+            <Space size={4}>
+              <Tag color="blue">{refs.length}个</Tag>
+              <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/combinations/${refs[0].id}`)}>
+                {refs[0].name}
+              </Button>
+            </Space>
           )
         }
         return (
-          <Popover
-            content={
-              <Space direction="vertical" size={4}>
-                {refs.map((ref) => (
-                  <Button key={ref.id} type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/combinations/${ref.id}`)}>
-                    {ref.name}
-                  </Button>
-                ))}
-              </Space>
-            }
-            trigger="click"
-          >
-            <Button type="link" size="small" style={{ padding: 0 }}>
-              {refs[0].name} 等{refs.length}个 ▾
-            </Button>
-          </Popover>
+          <Space size={4}>
+            <Tag color="blue">{refs.length}个</Tag>
+            <Popover
+              content={
+                <Space direction="vertical" size={4}>
+                  {refs.map((ref) => (
+                    <Button key={ref.id} type="link" size="small" style={{ padding: 0 }} onClick={() => navigate(`/combinations/${ref.id}`)}>
+                      {ref.name}
+                    </Button>
+                  ))}
+                </Space>
+              }
+              trigger="click"
+            >
+              <Button type="link" size="small" style={{ padding: 0 }}>
+                {refs[0].name} 等 ▾
+              </Button>
+            </Popover>
+          </Space>
         )
       },
     },
@@ -288,6 +295,7 @@ export function StrategiesListPage() {
         columns={columns}
         dataSource={dataSource}
         pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+        locale={{ emptyText: <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Space>
   )

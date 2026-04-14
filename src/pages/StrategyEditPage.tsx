@@ -16,6 +16,7 @@ import {
 import {
   Alert,
   Avatar,
+  Breadcrumb,
   Button,
   Card,
   Col,
@@ -210,7 +211,6 @@ export function StrategyEditPage() {
   const { state } = useAdminStore()
   const strategy = state.strategies.find((item) => item.id === id)
 
-  // 在 hooks 之前检查 strategy 是否存在
   if (!strategy) {
     return <StrategyNotFound />
   }
@@ -480,6 +480,14 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
 
   return (
     <Flex vertical gap={24}>
+      <Breadcrumb
+        items={[
+          { title: '推荐系统' },
+          { title: <a onClick={() => navigate('/strategies')}>排序策略</a> },
+          { title: '编辑' },
+        ]}
+        style={{ marginBottom: 8 }}
+      />
       {/* 页面头部 */}
       <Flex align="center" justify="space-between">
         <Flex align="center" gap={12}>

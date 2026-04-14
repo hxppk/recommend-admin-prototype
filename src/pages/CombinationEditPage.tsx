@@ -23,6 +23,7 @@ import {
 } from '@ant-design/icons'
 import {
   Button,
+  Breadcrumb,
   Card,
   Col,
   Dropdown,
@@ -113,7 +114,15 @@ export function CombinationEditPage() {
   }
 
   function handleSave() {
-    updateCombination(draft!.id, draft!)
+    if (!draft.name.trim()) {
+      Modal.warning({
+        title: '保存失败',
+        content: '策略组合名称不能为空',
+        okText: '知道了',
+      })
+      return
+    }
+    updateCombination(draft!.id, { ...draft!, name: draft.name.trim() })
     navigate('/combinations')
   }
 
@@ -140,11 +149,19 @@ export function CombinationEditPage() {
     updateCombination(draft!.id, {
       ...draft!,
       status: draft!.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-    } as Combination)
+    })
   }
 
   return (
     <Flex vertical style={{ gap: 24 }}>
+      <Breadcrumb
+        items={[
+          { title: '推荐系统' },
+          { title: <a onClick={() => navigate('/combinations')}>策略组合</a> },
+          { title: '编辑' },
+        ]}
+        style={{ marginBottom: 8 }}
+      />
       {/* 页面头部 */}
       <Flex align="center" justify="space-between">
         <Flex align="center" gap={12}>

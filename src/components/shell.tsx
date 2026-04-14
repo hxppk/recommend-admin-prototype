@@ -50,8 +50,8 @@ const menuItems: MenuProps['items'] = [
     icon: <RocketOutlined />,
   },
   {
-    key: '/dashboard',
-    label: <NavLink to="/dashboard">效果监控</NavLink>,
+    key: '/monitoring',
+    label: <NavLink to="/monitoring">效果监控</NavLink>,
     icon: <BarChartOutlined />,
   },
   {
@@ -73,7 +73,7 @@ const breadcrumbLabels: Record<string, string> = {
   strategies: '排序策略',
   combinations: '策略组合',
   plans: '投放计划',
-  dashboard: '效果监控',
+  monitoring: '效果监控',
   preview: '全链路预览',
   edit: '编辑',
 }

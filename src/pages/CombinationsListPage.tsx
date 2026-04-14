@@ -5,7 +5,7 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { Button, Dropdown, Input, Modal, Popover, Row, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Dropdown, Empty, Input, Modal, Popover, Row, Select, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -250,7 +250,7 @@ export function CombinationsListPage() {
     <Space direction="vertical" size="large" style={{ display: 'flex' }}>
       <Space direction="vertical" size={4}>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          资源位策略编排
+          策略组合
         </Typography.Title>
         <Typography.Text type="secondary">
           管理资源位编排与选品逻辑，覆盖全平台推荐场景。
@@ -309,7 +309,7 @@ export function CombinationsListPage() {
           onChange: (page) => setCurrentPage(page),
           showTotal: (total) => `共 ${total} 条`,
         }}
-        locale={{ emptyText: '暂无匹配的策略组合' }}
+        locale={{ emptyText: <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Space>
   )

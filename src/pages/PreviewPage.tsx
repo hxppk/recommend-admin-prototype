@@ -21,7 +21,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { SearchOutlined, MobileOutlined, ShoppingOutlined, ArrowRightOutlined } from '@ant-design/icons'
+import { SearchOutlined, MobileOutlined, ArrowRightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Paragraph, Text } = Typography
@@ -32,14 +32,6 @@ const slotCapacity: Record<string, number> = {
   'slot-home-guess': 8,
   'slot-order-confirm': 3,
   'slot-product-detail': 4,
-}
-
-const slotLabels: Record<string, string> = {
-  'slot-order-left': '商品点单页-左侧推荐菜单',
-  'slot-home-top': '首页顶部',
-  'slot-home-guess': '首页猜你喜欢',
-  'slot-order-confirm': '订单确认页',
-  'slot-product-detail': '商品详情页',
 }
 
 const statusTagColor: Record<string, string> = {
@@ -109,7 +101,6 @@ export function PreviewPage() {
   ]
 
   const capacity = slotCapacity[slotId] ?? 4
-  const slotLabel = slotLabels[slotId] ?? slotId
   const allSlots = Array.from({ length: capacity }, (_, i) => result.slots[i] ?? {
     slotIndex: i + 1,
     product: null,
@@ -182,7 +173,6 @@ export function PreviewPage() {
               <Alert
                 type="warning"
                 showIcon
-                size="small"
                 message="当前为兜底推荐"
                 style={{ marginBottom: 8 }}
               />
@@ -191,7 +181,6 @@ export function PreviewPage() {
               <Alert
                 type="success"
                 showIcon
-                size="small"
                 message={`命中成功 — ${result.plan.name}`}
                 style={{ marginBottom: 8 }}
               />
