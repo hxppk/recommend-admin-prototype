@@ -85,6 +85,7 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
         (parsed.strategies?.[0] && !('status' in parsed.strategies[0])) ||
         (parsed.strategies?.[0] && !('description' in parsed.strategies[0])) ||
         (parsed.pools?.[0] && !('productAddedTimes' in parsed.pools[0])) ||
+        (parsed.strategies?.[0] && !('salesDataSource' in parsed.strategies[0])) ||
         !parsed.users ||
         !parsed.roles
       ) {
