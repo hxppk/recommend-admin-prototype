@@ -12,7 +12,10 @@ import type {
   Combination,
   Plan,
   Pool,
+  Role,
+  RoleCode,
   Strategy,
+  User,
 } from './types'
 
 interface AdminStoreValue {
@@ -32,6 +35,12 @@ interface AdminStoreValue {
   updatePlan: (planId: string, next: Plan) => void
   copyPlan: (planId: string) => string | null
   deletePlan: (planId: string) => void
+  createRole: () => string
+  updateRole: (roleId: string, next: Role) => void
+  deleteRole: (roleId: string) => void
+  createUser: () => string
+  updateUser: (userId: string, next: User) => void
+  deleteUser: (userId: string) => void
 }
 
 export const CURRENT_USER = '陈悦'
@@ -75,7 +84,9 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
         (parsed.strategies?.[0] && !('kind' in parsed.strategies[0])) ||
         (parsed.strategies?.[0] && !('status' in parsed.strategies[0])) ||
         (parsed.strategies?.[0] && !('description' in parsed.strategies[0])) ||
-        (parsed.pools?.[0] && !('productAddedTimes' in parsed.pools[0]))
+        (parsed.pools?.[0] && !('productAddedTimes' in parsed.pools[0])) ||
+        !parsed.users ||
+        !parsed.roles
       ) {
         return initialState
       }
@@ -140,6 +151,7 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
         sortDimension: 'SALES_COUNT',
         timeWindow: '7D',
         fallbackStrategyId: 'strategy-hot-all',
+        salesDataSource: 'NATIONAL',
         createdAt: '2026-03-16 10:05',
         createdBy: CURRENT_USER,
         manualProductIds: [],
@@ -190,7 +202,7 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
         status: 'ACTIVE',
         createdAt: '2026-03-16 10:20',
         createdBy: CURRENT_USER,
-        categoryLimit: 2,
+        categoryLimit: null,  // 已废弃
         sessionDedup: true,
         slots: [{ id: createId('slot'), strategyId: state.strategies[0]?.id ?? null }],
       }
@@ -281,6 +293,71 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
       setState((current) => ({
         ...current,
         plans: current.plans.filter((item) => item.id !== planId),
+      }))
+    },
+    createRole() {
+      const id = createId('role')
+      const next: Role = {
+        id,
+        name: `新建角色 ${state.roles.length}`,
+        code: 'CUSTOM' as RoleCode,
+        description: '',
+        permissions: [],
+        createdAt: '2026-04-20 10:00',
+        createdBy: CURRENT_USER,
+        kind: 'CUSTOM',
+      }
+      setState((current) => ({ ...current, roles: [...current.roles, next] }))
+      return id
+    },
+    updateRole(roleId, next) {
+      setState((current) => ({
+        ...current,
+        roles: replaceItem(
+          current.roles,
+          roleId === next.id ? next : { ...next, id: roleId },
+        ),
+      }))
+    },
+    deleteRole(roleId) {
+      const target = state.roles.find((item) => item.id === roleId)
+      if (target?.kind === 'SYSTEM') return
+      setState((current) => ({
+        ...current,
+        roles: current.roles.filter((item) => item.id !== roleId),
+      }))
+    },
+    createUser() {
+      const id = createId('user')
+      const next: User = {
+        id,
+        username: '',
+        displayName: '',
+        email: '',
+        phone: '',
+        roleId: state.roles.find((r) => r.code === 'OPERATOR')?.id ?? state.roles[0]?.id ?? '',
+        roleCode: 'OPERATOR',
+        status: 'ACTIVE',
+        lastLoginAt: null,
+        createdAt: '2026-04-20 10:00',
+        createdBy: CURRENT_USER,
+      }
+      setState((current) => ({ ...current, users: [...current.users, next] }))
+      return id
+    },
+    updateUser(userId, next) {
+      setState((current) => ({
+        ...current,
+        users: replaceItem(
+          current.users,
+          userId === next.id ? next : { ...next, id: userId },
+        ),
+      }))
+    },
+    deleteUser(userId) {
+      setState((current) => ({
+        ...current,
+        users: current.users.filter((item) => item.id !== userId),
       }))
     },
   }

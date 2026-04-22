@@ -6,8 +6,10 @@ import type {
   Plan,
   Pool,
   Product,
+  Role,
   StoreLocation,
   Strategy,
+  User,
 } from './types'
 
 const products: Product[] = [
@@ -128,6 +130,7 @@ const strategies: Strategy[] = [
     manualProductIds: [],
     filterUnavailable: true,
     kind: 'SYSTEM',
+    salesDataSource: 'NATIONAL',
   },
   {
     id: 'strategy-new-seasonal',
@@ -144,6 +147,7 @@ const strategies: Strategy[] = [
     manualProductIds: [],
     filterUnavailable: true,
     kind: 'CUSTOM',
+    salesDataSource: 'NATIONAL',
   },
   {
     id: 'strategy-manual-coffee',
@@ -160,6 +164,7 @@ const strategies: Strategy[] = [
     manualProductIds: ['prod-coconut-latte', 'prod-oat-latte', 'prod-americano'],
     filterUnavailable: true,
     kind: 'CUSTOM',
+    salesDataSource: 'NATIONAL',
   },
   {
     id: 'strategy-hot-fruit',
@@ -176,6 +181,7 @@ const strategies: Strategy[] = [
     manualProductIds: [],
     filterUnavailable: true,
     kind: 'CUSTOM',
+    salesDataSource: 'NATIONAL',
   },
 ]
 
@@ -403,6 +409,126 @@ function buildSeries(): DashboardPoint[] {
   return records
 }
 
+const ALL_PERMISSIONS = [
+  'pool:read', 'pool:write',
+  'strategy:read', 'strategy:write',
+  'combination:read', 'combination:write',
+  'plan:read', 'plan:write',
+  'monitoring:read',
+  'preview:read',
+  'user:read', 'user:write',
+  'role:read', 'role:write',
+]
+
+const ADMIN_PERMISSIONS = ALL_PERMISSIONS.filter(p => !p.startsWith('user:') && !p.startsWith('role:'))
+
+const OPERATOR_PERMISSIONS = [
+  'pool:read', 'pool:write',
+  'combination:read', 'combination:write',
+  'plan:read', 'plan:write',
+  'monitoring:read',
+]
+
+const VIEWER_PERMISSIONS = ALL_PERMISSIONS.filter(p => p.endsWith(':read'))
+
+const ROLES: Role[] = [
+  {
+    id: 'role-super-admin',
+    name: '超级管理员',
+    code: 'SUPER_ADMIN',
+    description: '拥有全部权限，包括用户和角色管理',
+    permissions: ALL_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+  },
+  {
+    id: 'role-admin',
+    name: '管理员',
+    code: 'ADMIN',
+    description: '拥有除用户和角色管理外的全部权限',
+    permissions: ADMIN_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+  },
+  {
+    id: 'role-operator',
+    name: '运营人员',
+    code: 'OPERATOR',
+    description: '选品池、策略组合、投放计划读写，效果监控只读',
+    permissions: OPERATOR_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+  },
+  {
+    id: 'role-viewer',
+    name: '观察者',
+    code: 'VIEWER',
+    description: '全局只读权限',
+    permissions: VIEWER_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+  },
+]
+
+const USERS: User[] = [
+  {
+    id: 'user-chenyue',
+    username: 'chenyue',
+    displayName: '陈悦',
+    email: 'chenyue@chabaidao.com',
+    phone: '13800138001',
+    roleId: 'role-admin',
+    roleCode: 'ADMIN',
+    status: 'ACTIVE',
+    lastLoginAt: '2026-04-20 09:30',
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+  },
+  {
+    id: 'user-zhangyunying',
+    username: 'zhangyunying',
+    displayName: '张运营',
+    email: 'zhangyy@chabaidao.com',
+    phone: '13800138002',
+    roleId: 'role-operator',
+    roleCode: 'OPERATOR',
+    status: 'ACTIVE',
+    lastLoginAt: '2026-04-19 14:20',
+    createdAt: '2026-01-05 10:00',
+    createdBy: 'chenyue',
+  },
+  {
+    id: 'user-lixuanpin',
+    username: 'lixuanpin',
+    displayName: '李选品',
+    email: 'lixp@chabaidao.com',
+    phone: '13800138003',
+    roleId: 'role-operator',
+    roleCode: 'OPERATOR',
+    status: 'ACTIVE',
+    lastLoginAt: '2026-04-18 16:45',
+    createdAt: '2026-01-10 10:00',
+    createdBy: 'chenyue',
+  },
+  {
+    id: 'user-wangcelue',
+    username: 'wangcelue',
+    displayName: '王策略',
+    email: 'wangcl@chabaidao.com',
+    phone: '13800138004',
+    roleId: 'role-viewer',
+    roleCode: 'VIEWER',
+    status: 'DISABLED',
+    lastLoginAt: '2026-03-15 11:00',
+    createdAt: '2026-02-01 10:00',
+    createdBy: 'chenyue',
+  },
+]
+
 export const initialState: AdminState = {
   products,
   pools,
@@ -413,4 +539,6 @@ export const initialState: AdminState = {
   segments,
   storeGroups,
   dashboardSeries: buildSeries(),
+  roles: ROLES,
+  users: USERS,
 }

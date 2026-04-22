@@ -7,7 +7,6 @@ import {
   HolderOutlined,
   PlusOutlined,
   RocketOutlined,
-  SearchOutlined,
   ToolOutlined,
   UpOutlined,
   DownOutlined,
@@ -62,7 +61,7 @@ import { createId } from '../lib/domain'
 import type { ManualBoostItem } from '../lib/types'
 import { useEffect, useState, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { detectStrategyCycle, getPoolProducts, productMap } from '../lib/domain'
+import { getPoolProducts, productMap } from '../lib/domain'
 import { CURRENT_USER, useAdminStore } from '../lib/store'
 import type { Product, Strategy } from '../lib/types'
 
@@ -87,18 +86,23 @@ const modeMeta: Record<Strategy['mode'], { title: string; desc: string; icon: Re
     icon: <ToolOutlined />,
     tag: 'MANUAL',
   },
-  PERSONALIZED: {
-    title: '个性化推荐',
-    desc: '根据用户消费行为和偏好，综合预估 CTR/CVR 进行排序。此模式无需运营配置参数，由系统自动计算。',
+  ALGORITHM: {
+    title: '算法模型',
+    desc: '基于用户行为特征与多维偏好画像，通过智能排序引擎输出最优推荐结果',
     icon: <StarOutlined />,
-    tag: 'PERSONALIZED',
-    color: 'cyan',
+    tag: 'ALGORITHM',
+    color: 'geekblue',
   },
 }
 
 const sortDimensionOptions = [
   { label: '销量（杯数）', value: 'SALES_COUNT' },
   { label: '销售额（金额）', value: 'SALES_AMOUNT' },
+]
+
+const salesDataSourceOptions = [
+  { label: '全国数据', value: 'NATIONAL' },
+  { label: '门店数据', value: 'STORE' },
 ]
 
 const timeWindowOptions = [
@@ -202,7 +206,8 @@ interface StrategyFormValues {
   mode: Strategy['mode']
   sortDimension?: 'SALES_COUNT' | 'SALES_AMOUNT'
   timeWindow?: '7D' | '14D' | '30D'
-  fallbackStrategyId?: string
+  salesDataSource?: 'NATIONAL' | 'STORE'
+  fallbackDataSource?: 'NATIONAL' | 'STORE'
   status: 'ACTIVE' | 'INACTIVE'
 }
 
@@ -250,7 +255,6 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
   // 追踪表单字段变化（用于条件渲染和依赖逻辑）
   const [mode, setMode] = useState<Strategy['mode'] | null>(strategy.mode ?? null)
   const [selectedPoolId, setSelectedPoolId] = useState(strategy.poolId ?? '')
-  const [fallbackId, setFallbackId] = useState<string | undefined>(strategy.fallbackStrategyId || undefined)
 
   // 构建表单初始值
   const formInitialValues: StrategyFormValues = useMemo(() => {
@@ -261,7 +265,8 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
       mode: strategy.mode,
       sortDimension: strategy.sortDimension,
       timeWindow: strategy.timeWindow,
-      fallbackStrategyId: strategy.fallbackStrategyId || undefined,
+      salesDataSource: strategy.salesDataSource,
+      fallbackDataSource: 'NATIONAL',
       status: strategy.status,
     }
   }, [strategy.id])
@@ -271,7 +276,6 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
     if (strategy) {
       setMode(strategy.mode)
       setSelectedPoolId(strategy.poolId)
-      setFallbackId(strategy.fallbackStrategyId || undefined)
     }
   }, [strategy.id])
 
@@ -285,27 +289,11 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
         mode: strategy.mode,
         sortDimension: strategy.sortDimension,
         timeWindow: strategy.timeWindow,
-        fallbackStrategyId: strategy.fallbackStrategyId || undefined,
+        salesDataSource: strategy.salesDataSource,
         status: strategy.status,
       })
     }
   }, [form, formInitialValues]) // 依赖 formInitialValues 确保策略切换时重新填充
-
-  // 实时检测循环引用
-  const cycleError = useMemo(() => {
-    if (!strategy || !fallbackId) return null
-    const tempDraft: Strategy = {
-      ...strategy,
-      fallbackStrategyId: fallbackId,
-    }
-    const tempState = {
-      ...state,
-      strategies: state.strategies.map((item) =>
-        item.id === strategy.id ? tempDraft : item,
-      ),
-    }
-    return detectStrategyCycle(tempState, strategy.id, tempDraft.fallbackStrategyId)
-  }, [state, strategy, fallbackId])
 
   // 获取选品池商品（用于 MANUAL 模式）
   const productsById = productMap(state)
@@ -376,7 +364,8 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
           mode: values.mode,
           sortDimension: values.sortDimension || 'SALES_COUNT',
           timeWindow: values.timeWindow || '7D',
-          fallbackStrategyId: values.fallbackStrategyId || null,
+          salesDataSource: values.salesDataSource || strategy.salesDataSource || 'NATIONAL',
+          fallbackStrategyId: strategy.fallbackStrategyId,
           manualProductIds: manualProductIds,
           filterUnavailable: true,
           manualBoostEnabled,
@@ -506,7 +495,7 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
             ? (
                 <>
                   <Button onClick={handleCancel}>取消</Button>
-                  <Button type="primary" disabled={Boolean(cycleError)} onClick={handleSave}>保存</Button>
+                  <Button type="primary" onClick={handleSave}>保存</Button>
                 </>
               )
             : (
@@ -598,7 +587,7 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
               value={mode}
               style={{ display: 'flex', flexWrap: 'nowrap', gap: 12 }}
             >
-              {(['HOT', 'NEW', 'MANUAL', 'PERSONALIZED'] as const).map((m) => {
+              {(['HOT', 'NEW', 'MANUAL', 'ALGORITHM'] as const).map((m) => {
                 const meta = modeMeta[m]
                 const isSelected = mode === m
                 return (
@@ -611,7 +600,7 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
                       padding: 16,
                       borderRadius: 8,
                       border: isSelected ? '1px solid #1677ff' : '1px solid #e8e8e8',
-                      background: isSelected ? '#f0f5ff' : '#fafafa',
+                      background: isSelected ? '#fff' : '#fafafa',
                       cursor: readonly ? 'default' : 'pointer',
                       position: 'relative',
                       transition: 'all 0.2s',
@@ -670,26 +659,9 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
                         <Tag color={meta.color}>{meta.tag}</Tag>
                       )}
                     </Flex>
-                    {isSelected || m !== 'PERSONALIZED' ? (
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                        {meta.desc}
-                      </Typography.Text>
-                    ) : (
-                      <Tooltip title={meta.desc}>
-                        <div
-                          style={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            fontSize: 12,
-                            color: 'var(--ant-color-text-secondary)',
-                          }}
-                        >
-                          {meta.desc}
-                        </div>
-                      </Tooltip>
-                    )}
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      {meta.desc}
+                    </Typography.Text>
                   </div>
                 )
               })}
@@ -720,8 +692,8 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
                       borderLeft: '4px solid #1677ff',
                     }}
                   >
-                    <Row gutter={24}>
-                      <Col span={12}>
+                    <Row gutter={16}>
+                      <Col span={8}>
                         <Form.Item
                           label="排序维度"
                           name="sortDimension"
@@ -730,7 +702,16 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
                           <Select options={sortDimensionOptions} />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col span={8}>
+                        <Form.Item
+                          label="数据范围"
+                          name="salesDataSource"
+                          rules={[{ required: true, message: '请选择数据范围' }]}
+                        >
+                          <Select options={salesDataSourceOptions} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
                         <Form.Item
                           label="时间窗口"
                           name="timeWindow"
@@ -770,94 +751,77 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
           <Form.Item noStyle shouldUpdate>
             {() =>
               mode === 'MANUAL' && (
-                <Row gutter={24} style={{ marginTop: 16 }}>
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                   <Col span={12}>
-                    <Card
-                      title="选品池商品"
-                      style={{ height: 480 }}
-                      bodyStyle={{ height: 'calc(100% - 48px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
-                    >
-                      <div style={{ padding: 'var(--ant-padding-sm) var(--ant-padding)', borderBottom: '1px solid var(--ant-color-border-split)' }}>
-                        <Input.Search
-                          placeholder="搜索商品"
-                          allowClear
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          prefix={<SearchOutlined />}
-                        />
-                      </div>
-                      <div style={{ flex: 1, overflowY: 'auto' }}>
-                        <List
-                          dataSource={availableProducts}
-                          split
-                          locale={{ emptyText: <Empty description="无可用商品" /> }}
-                          renderItem={(product) => (
-                            <List.Item
-                              actions={
-                                readonly
-                                  ? []
-                                  : [
-                                      <Button
-                                        key="add"
-                                        type="link"
-                                        size="small"
-                                        icon={<PlusOutlined />}
-                                        onClick={() => handleAddProduct(product.id)}
-                                      >
-                                        添加
-                                      </Button>,
-                                    ]
-                              }
-                            >
-                              <List.Item.Meta
-                                title={product.name}
-                                description={
-                                  <Typography.Text type="secondary">{product.spuId}</Typography.Text>
-                                }
-                              />
-                            </List.Item>
-                          )}
-                        />
-                      </div>
+                    <Card title="选品池商品">
+                      <Input.Search
+                        placeholder="搜索商品"
+                        allowClear
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        style={{ marginBottom: 12 }}
+                      />
+                      <List
+                        dataSource={availableProducts}
+                        size="small"
+                        locale={{ emptyText: <Empty description="无可用商品" /> }}
+                        renderItem={(product) => (
+                          <List.Item
+                            actions={!readonly ? [
+                              <Button
+                                key="add"
+                                type="link"
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={() => handleAddProduct(product.id)}
+                              >
+                                添加
+                              </Button>,
+                            ] : []}
+                          >
+                            <List.Item.Meta
+                              title={product.name}
+                              description={product.spuId}
+                            />
+                          </List.Item>
+                        )}
+                      />
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card
-                      title={`已选排序列表（${manualProductIds.length} 个商品）`}
-                      style={{ height: 480 }}
-                      bodyStyle={{ height: 'calc(100% - 48px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}
-                    >
-                      <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {selectedProducts.length === 0 ? (
-                          <Flex align="center" justify="center" style={{ height: '100%' }}>
-                            <Empty description="请从左侧添加商品" />
-                          </Flex>
-                        ) : (
-                          <DndContext
-                            sensors={sensors}
-                            collisionDetection={closestCenter}
-                            onDragEnd={handleDragEnd}
+                    <Card title={`已选排序列表（${manualProductIds.length} 个商品）`}>
+                      {selectedProducts.length === 0 ? (
+                        <Empty description="请从左侧添加商品" />
+                      ) : (
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <SortableContext
+                            items={manualProductIds}
+                            strategy={verticalListSortingStrategy}
                           >
-                            <SortableContext
-                              items={manualProductIds}
-                              strategy={verticalListSortingStrategy}
-                            >
-                              {selectedProducts.map((product, index) => (
-                                <ManualSortRow
-                                  key={product.id}
-                                  product={product}
-                                  index={index}
-                                  total={selectedProducts.length}
-                                  readonly={readonly}
-                                  onMoveUp={() => handleMoveUp(index)}
-                                  onMoveDown={() => handleMoveDown(index)}
-                                  onRemove={() => handleRemoveProduct(product.id)}
-                                />
-                              ))}
-                            </SortableContext>
-                          </DndContext>
-                        )}
-                      </div>
+                            <List
+                              size="small"
+                              dataSource={selectedProducts}
+                              renderItem={(product, index) => (
+                                <List.Item>
+                                  <ManualSortRow
+                                    product={product}
+                                    index={index}
+                                    total={selectedProducts.length}
+                                    readonly={readonly}
+                                    onMoveUp={() => handleMoveUp(index)}
+                                    onMoveDown={() => handleMoveDown(index)}
+                                    onRemove={() => handleRemoveProduct(product.id)}
+                                  />
+                                </List.Item>
+                              )}
+                            />
+                          </SortableContext>
+                        </DndContext>
+                      )}
                     </Card>
                   </Col>
                 </Row>
@@ -865,10 +829,10 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
             }
           </Form.Item>
 
-          {/* PERSONALIZED 模式说明 */}
+          {/* ALGORITHM 模式说明 */}
           <Form.Item noStyle shouldUpdate>
             {() =>
-              mode === 'PERSONALIZED' && (
+              mode === 'ALGORITHM' && (
                 <Alert
                   type="info"
                   showIcon
@@ -941,32 +905,15 @@ function StrategyEditor({ strategy }: { strategy: Strategy }) {
                 </Form.Item>
               ) : (
                 <>
-                  <Form.Item
-                    label="兜底策略"
-                    name="fallbackStrategyId"
-                    help={cycleError ?? '默认使用全量热销榜兜底，可更换为其他排序策略。'}
-                    validateStatus={cycleError ? 'error' : undefined}
-                  >
-                    <Select
-                      placeholder="请选择兜底策略（可选）"
-                      allowClear
-                      onChange={setFallbackId}
-                      options={state.strategies
-                        .filter((item) => item.id !== strategy.id)
-                        .map((item) => ({
-                          label: (
-                            <Space>
-                              <span>{item.name}</span>
-                              {item.kind === 'SYSTEM' && <Tag color="default">系统默认</Tag>}
-                            </Space>
-                          ),
-                          value: item.id,
-                        }))}
-                    />
+                  <Form.Item label="兜底策略">
+                    <Flex align="center" gap={8}>
+                      <Tag color="orange">热销排行兜底</Tag>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>固定使用热销排行策略兜底</Typography.Text>
+                    </Flex>
                   </Form.Item>
-                  {cycleError && (
-                    <Alert type="warning" message={cycleError} showIcon style={{ marginBottom: 16 }} />
-                  )}
+                  <Form.Item label="兜底数据范围">
+                    <Input value="使用全国近 7 天热销 GMV 数据" disabled />
+                  </Form.Item>
                 </>
               )}
             </Col>
@@ -1007,9 +954,6 @@ function ManualSortRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id })
 
   const style: React.CSSProperties = {
-    padding: 'var(--ant-padding-sm) var(--ant-padding)',
-    borderBottom: '1px solid var(--ant-color-border-split)',
-    background: isDragging ? 'var(--ant-color-primary-bg-hover)' : 'var(--ant-color-bg-container)',
     opacity: isDragging ? 0.5 : 1,
     transition,
     transform: transform ? CSS.Translate.toString(transform) : undefined,
@@ -1017,32 +961,30 @@ function ManualSortRow({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Flex align="center" gap={8}>
+      <Space size={8}>
         {/* 拖拽手柄 */}
         {!readonly && (
           <span
             {...attributes}
             {...listeners}
-            style={{ cursor: 'grab', color: 'var(--ant-color-text-quaternary)', fontSize: 16, flexShrink: 0 }}
+            style={{ cursor: 'grab', color: 'var(--ant-color-text-quaternary)' }}
           >
             <HolderOutlined />
           </span>
         )}
         {/* 序号 */}
-        <Avatar size="small" style={{ background: 'var(--ant-color-fill-quaternary)', color: 'var(--ant-color-text-secondary)', flexShrink: 0 }}>
-          {index + 1}
-        </Avatar>
+        <Avatar size="small">{index + 1}</Avatar>
         {/* 商品信息 */}
-        <Flex vertical gap={2} style={{ minWidth: 0, flex: 1 }}>
-          <Typography.Text strong ellipsis style={{ fontSize: 14 }}>
+        <Space direction="vertical" size={2} style={{ minWidth: 0 }}>
+          <Typography.Text strong ellipsis>
             {product.name}
           </Typography.Text>
-          <Flex gap={8} align="center" style={{ fontSize: 12 }}>
+          <Space size={8}>
             <Typography.Text type="secondary">{product.spuId}</Typography.Text>
-            <Tag style={{ margin: 0 }}>{product.category}</Tag>
+            <Tag>{product.category}</Tag>
             <Typography.Text type="secondary">¥{product.price}</Typography.Text>
-          </Flex>
-        </Flex>
+          </Space>
+        </Space>
         {/* 操作按钮 */}
         {!readonly && (
           <Space size="small">
@@ -1077,7 +1019,7 @@ function ManualSortRow({
             </Tooltip>
           </Space>
         )}
-      </Flex>
+      </Space>
     </div>
   )
 }

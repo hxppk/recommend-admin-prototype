@@ -7,6 +7,7 @@ import {
   GiftOutlined,
   OrderedListOutlined,
   RocketOutlined,
+  SafetyOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
@@ -66,6 +67,23 @@ const menuItems: MenuProps['items'] = [
       },
     ],
   },
+  {
+    key: 'group-system',
+    label: '系统设置',
+    type: 'group',
+    children: [
+      {
+        key: '/users',
+        label: <NavLink to="/users">用户管理</NavLink>,
+        icon: <UserOutlined />,
+      },
+      {
+        key: '/roles',
+        label: <NavLink to="/roles">角色管理</NavLink>,
+        icon: <SafetyOutlined />,
+      },
+    ],
+  },
 ]
 
 const breadcrumbLabels: Record<string, string> = {
@@ -75,6 +93,8 @@ const breadcrumbLabels: Record<string, string> = {
   plans: '投放计划',
   monitoring: '效果监控',
   preview: '全链路预览',
+  users: '用户管理',
+  roles: '角色管理',
   edit: '编辑',
 }
 

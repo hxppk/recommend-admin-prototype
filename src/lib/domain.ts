@@ -222,7 +222,6 @@ function pickProductFromStrategy(
   seen: Set<string>,
   lastCategory: string | null,
   streak: number,
-  categoryLimit: number | null,
 ) {
   const chain = [strategy]
 
@@ -239,7 +238,6 @@ function pickProductFromStrategy(
     for (let index = 0; index < ranked.length; index += 1) {
       const product = ranked[index]
       if (seen.has(product.id)) continue
-      if (categoryLimit && lastCategory === product.category && streak >= categoryLimit) continue
       return {
         product,
         rank: index + 1,
@@ -434,7 +432,6 @@ export function simulatePreview(
       seen,
       lastCategory,
       streak,
-      combination.categoryLimit,
     )
 
     if (picked.product) {

@@ -10,8 +10,10 @@ import { PlansListPage } from './pages/PlansListPage'
 import { PoolDetailPage } from './pages/PoolDetailPage'
 import { PoolsListPage } from './pages/PoolsListPage'
 import { PreviewPage } from './pages/PreviewPage'
+import { RolesListPage } from './pages/RolesListPage'
 import { StrategyEditPage } from './pages/StrategyEditPage'
 import { StrategiesListPage } from './pages/StrategiesListPage'
+import { UsersListPage } from './pages/UsersListPage'
 
 function App() {
   return (
@@ -29,6 +31,8 @@ function App() {
             <Route path="/plans" element={<PlansListPage />} />
             <Route path="/plans/:id/edit" element={<PlanEditPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/roles" element={<RolesListPage />} />
+            <Route path="/users" element={<UsersListPage />} />
             <Route path="/monitoring" element={<MonitoringPage />} />
             <Route path="/preview" element={<PreviewPage />} />
           </Route>

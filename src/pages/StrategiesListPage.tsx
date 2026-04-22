@@ -17,7 +17,7 @@ const modeTag: Record<Strategy['mode'], { color: string; label: string }> = {
   HOT: { color: 'orange', label: '热销模型 Hot' },
   NEW: { color: 'blue', label: '新品曝光 New' },
   MANUAL: { color: 'purple', label: '人工定序 Manual' },
-  PERSONALIZED: { color: 'geekblue', label: '个性化推荐 Personalized' },
+  ALGORITHM: { color: 'geekblue', label: '算法模型 Algorithm' },
 }
 
 export function StrategiesListPage() {
@@ -39,8 +39,6 @@ export function StrategiesListPage() {
         key: strategy.id,
         references: getStrategyReferences(state, strategy.id),
         poolName: pools[strategy.poolId]?.name ?? '-',
-        fallbackName:
-          state.strategies.find((item) => item.id === strategy.fallbackStrategyId)?.name ?? null,
       }))
     // 系统策略置顶
     return filtered.sort((a, b) => {
@@ -152,16 +150,6 @@ export function StrategiesListPage() {
           </Space>
         )
       },
-    },
-    {
-      title: '兜底策略',
-      key: 'fallback',
-      render: (_, record) =>
-        record.fallbackName ? (
-          <span>{record.fallbackName}</span>
-        ) : (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ),
     },
     {
       title: '创建时间',

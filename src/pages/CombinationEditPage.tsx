@@ -62,8 +62,9 @@ export function CombinationEditPage() {
 
   // 策略分组：统计每个策略被哪些 slot 使用
   const strategyGroups = useMemo(() => {
+    if (!draft) return { indexes: new Map(), colors: new Map() }
     const groups = new Map<string | null, number[]>()
-    draft!.slots.forEach((slot, index) => {
+    draft.slots.forEach((slot, index) => {
       const key = slot.strategyId
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(index)
@@ -77,7 +78,7 @@ export function CombinationEditPage() {
       ci += 1
     }
     return { indexes: groups, colors: colorMap }
-  }, [draft!.slots])
+  }, [draft?.slots])
 
   useEffect(() => {
     setDraft(combination ?? null)
@@ -268,18 +269,6 @@ export function CombinationEditPage() {
             {/* 全局策略区 */}
             <Card title="全局策略">
               <Flex vertical gap={16}>
-                <Flex align="center" gap={8}>
-                  <Typography.Text>同品类最多连续展示数：</Typography.Text>
-                  <InputNumber
-                    value={draft.categoryLimit ?? undefined}
-                    placeholder="不限制"
-                    min={1}
-                    max={10}
-                    disabled={readonly}
-                    onChange={(value) => setDraft({ ...draft, categoryLimit: value ?? null })}
-                    style={{ width: 100 }}
-                  />
-                </Flex>
                 <Flex align="center" gap={8}>
                   <Typography.Text>Session 内去重</Typography.Text>
                   <Tag color="success">已开启</Tag>

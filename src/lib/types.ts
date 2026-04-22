@@ -1,6 +1,6 @@
 export type ProductStatus = 'ACTIVE' | 'INACTIVE'
 export type PoolStatus = 'ACTIVE' | 'INACTIVE'
-export type StrategyMode = 'HOT' | 'NEW' | 'MANUAL' | 'PERSONALIZED'
+export type StrategyMode = 'HOT' | 'NEW' | 'MANUAL' | 'ALGORITHM'
 export type CombinationStatus = 'ACTIVE' | 'INACTIVE'
 export type PlanStatus = 'DRAFT' | 'PUBLISHED' | 'PAUSED' | 'ENDED'
 export type StoreScopeType = 'ALL' | 'REGION' | 'STORE'
@@ -43,6 +43,7 @@ export interface Strategy {
   sortDimension: 'SALES_COUNT' | 'SALES_AMOUNT'
   timeWindow: '7D' | '14D' | '30D'
   fallbackStrategyId: string | null
+  salesDataSource: 'NATIONAL' | 'STORE'
   createdAt: string
   createdBy: string
   manualProductIds: string[]
@@ -72,7 +73,7 @@ export interface Combination {
   createdAt: string
   createdBy: string
   slots: CombinationSlot[]
-  categoryLimit: number | null
+  categoryLimit?: number | null  // 已废弃，保留兼容
   sessionDedup: boolean
 }
 
@@ -143,6 +144,36 @@ export interface AdminState {
   segments: AudienceSegment[]
   storeGroups: Record<string, string[]>
   dashboardSeries: DashboardPoint[]
+  roles: Role[]
+  users: User[]
+}
+
+export type RoleCode = 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR' | 'VIEWER'
+export type UserStatus = 'ACTIVE' | 'DISABLED'
+
+export interface Role {
+  id: string
+  name: string
+  code: RoleCode
+  description: string
+  permissions: string[]
+  createdAt: string
+  createdBy: string
+  kind?: 'SYSTEM' | 'CUSTOM'
+}
+
+export interface User {
+  id: string
+  username: string
+  displayName: string
+  email: string
+  phone: string
+  roleId: string
+  roleCode: RoleCode
+  status: UserStatus
+  lastLoginAt: string | null
+  createdAt: string
+  createdBy: string
 }
 
 export interface PreviewSlotResult {
