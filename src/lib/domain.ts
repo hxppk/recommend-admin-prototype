@@ -220,8 +220,8 @@ function pickProductFromStrategy(
   state: AdminState,
   strategy: Strategy,
   seen: Set<string>,
-  lastCategory: string | null,
-  streak: number,
+  _lastCategory: string | null,
+  _streak: number,
 ) {
   const chain = [strategy]
 

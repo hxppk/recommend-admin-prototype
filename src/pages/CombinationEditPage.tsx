@@ -29,7 +29,6 @@ import {
   Dropdown,
   Empty,
   Flex,
-  InputNumber,
   Modal,
   Row,
   Select,
@@ -224,7 +223,7 @@ export function CombinationEditPage() {
                         ? strategyGroups.indexes.get(slot.strategyId) ?? []
                         : []
                       const isFirst = sameStrategySlots[0] === index
-                      const posInGroup = sameStrategySlots.findIndex((i) => i === index)
+                      const posInGroup = sameStrategySlots.findIndex((i: number) => i === index)
                       const prevIndex = posInGroup > 0 ? sameStrategySlots[posInGroup - 1] : undefined
                       return (
                         <div key={slot.id}>
