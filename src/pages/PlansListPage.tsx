@@ -51,7 +51,7 @@ export function PlansListPage() {
   const [statusFilter, setStatusFilter] = useState<PlanStatus | ''>('')
   const [priorityModal, setPriorityModal] = useState<{ open: false } | { open: true; planId: string; value: number | null; conflict: string | null }>({ open: false })
 
-  const isAdmin = CURRENT_USER_ROLE === 'ADMIN'
+  const isAdmin = CURRENT_USER_ROLE === 'SUPER_ADMIN'
 
   const statusOrder: Record<PlanStatus, number> = { PUBLISHED: 0, PAUSED: 1, DRAFT: 2, ENDED: 3 }
 

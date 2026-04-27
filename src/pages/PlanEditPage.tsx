@@ -61,7 +61,7 @@ export function PlanEditPage() {
   const nameInputRef = useRef<InputRef>(null)
 
   const isOwner = plan?.createdBy === CURRENT_USER
-  const isAdmin = CURRENT_USER_ROLE === 'ADMIN'
+  const isAdmin = CURRENT_USER_ROLE === 'SUPER_ADMIN'
   const canEdit = isOwner || (isAdmin && plan?.status === 'DRAFT')
   const [isEditing, setIsEditing] = useState(canEdit)
   const readonly = !isEditing

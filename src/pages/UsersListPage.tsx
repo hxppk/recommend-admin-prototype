@@ -1,5 +1,6 @@
 import { DeleteOutlined, PlusOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
 import {
+  AutoComplete,
   Button,
   Drawer,
   Empty,
@@ -10,7 +11,6 @@ import {
   Row,
   Select,
   Space,
-  Switch,
   Table,
   Tag,
   Typography,
@@ -18,8 +18,9 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { formatDate } from '../lib/domain'
+import { FEILIAN_DIRECTORY } from '../lib/mockData'
 import { CURRENT_USER, useAdminStore } from '../lib/store'
-import type { Role, RoleCode, User, UserStatus } from '../lib/types'
+import type { FeilianProfile, Role, User, UserStatus } from '../lib/types'
 
 const { Title, Text } = Typography
 
@@ -30,40 +31,78 @@ export function UsersListPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [feilianProfile, setFeilianProfile] = useState<FeilianProfile | null>(null)
+  const [feilianQuery, setFeilianQuery] = useState('')
   const [form] = Form.useForm()
 
   const dataSource = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return state.users
       .filter((u) => !keyword || u.username.toLowerCase().includes(keyword) || u.displayName.toLowerCase().includes(keyword) || u.phone.includes(keyword))
-      .filter((u) => !roleFilter || u.roleId === roleFilter)
+      .filter((u) => !roleFilter || u.roleIds.includes(roleFilter))
       .filter((u) => !statusFilter || u.status === statusFilter)
       .map((user) => ({
         ...user,
         key: user.id,
-        roleName: state.roles.find((r) => r.id === user.roleId)?.name ?? user.roleCode,
+        roleNames: user.roleIds
+          .map((rid) => state.roles.find((r) => r.id === rid)?.name)
+          .filter((n): n is string => Boolean(n)),
       }))
   }, [state.users, state.roles, search, roleFilter, statusFilter])
 
+  const feilianOptions = useMemo(() => {
+    const q = feilianQuery.trim().toLowerCase()
+    const existingUsernames = new Set(state.users.map((u) => u.username))
+    const candidates = FEILIAN_DIRECTORY.filter((p) => !existingUsernames.has(p.username))
+    const matched = q
+      ? candidates.filter((p) =>
+          p.displayName.toLowerCase().includes(q)
+          || p.username.toLowerCase().includes(q)
+          || p.phone.includes(q),
+        )
+      : candidates
+    return matched.slice(0, 8).map((p) => ({
+      value: p.displayName,
+      label: `${p.displayName}（${p.department}）`,
+      profile: p,
+    }))
+  }, [feilianQuery, state.users])
+
   function handleCreate() {
     setEditingUser(null)
+    setFeilianProfile(null)
+    setFeilianQuery('')
     form.resetFields()
-    form.setFieldsValue({ status: 'ACTIVE' })
+    form.setFieldsValue({ status: 'ACTIVE', roleIds: [] })
     setDrawerOpen(true)
   }
 
   function handleEdit(user: User) {
     setEditingUser(user)
-    form.setFieldsValue({
-      username: user.username,
+    setFeilianProfile({
       displayName: user.displayName,
-      email: user.email,
+      employeeId: user.employeeId ?? '',
+      username: user.username,
       phone: user.phone,
-      roleId: user.roleId,
+      email: user.email,
+      jobTitle: user.jobTitle ?? '',
+      department: user.department ?? '',
+      reportsTo: user.reportsTo ?? '',
+    })
+    setFeilianQuery(user.displayName)
+    form.setFieldsValue({
+      displayName: user.displayName,
+      roleIds: user.roleIds,
+      remark: user.remark ?? '',
       status: user.status,
-      password: '',
     })
     setDrawerOpen(true)
+  }
+
+  function handleSelectFeilian(_: string, option: { profile: FeilianProfile }) {
+    setFeilianProfile(option.profile)
+    setFeilianQuery(option.profile.displayName)
+    form.setFieldValue('displayName', option.profile.displayName)
   }
 
   function handleToggleStatus(user: User) {
@@ -84,45 +123,57 @@ export function UsersListPage() {
 
   function handleSave() {
     form.validateFields().then((values) => {
-      const selectedRole = state.roles.find((r) => r.id === values.roleId)
+      if (!feilianProfile) {
+        form.setFields([{ name: 'displayName', errors: ['请通过姓名联想从飞连选择员工'] }])
+        return
+      }
+      const profile = feilianProfile
+      if (!editingUser) {
+        const dup = state.users.some((u) => u.username === profile.username)
+        if (dup) {
+          form.setFields([{ name: 'displayName', errors: ['该员工已添加，请直接编辑现有账号'] }])
+          return
+        }
+      }
+      const patch: Partial<User> = {
+        username: profile.username,
+        displayName: profile.displayName,
+        email: profile.email,
+        phone: profile.phone,
+        employeeId: profile.employeeId,
+        jobTitle: profile.jobTitle,
+        department: profile.department,
+        reportsTo: profile.reportsTo,
+        roleIds: values.roleIds,
+        remark: values.remark || '',
+        status: values.status,
+      }
       if (editingUser) {
-        const patch: Partial<User> = {
-          username: values.username,
-          displayName: values.displayName,
-          email: values.email,
-          phone: values.phone,
-          roleId: values.roleId,
-          roleCode: (selectedRole?.code ?? 'OPERATOR') as RoleCode,
-          status: values.status,
-        }
-        if (values.password) {
-          // password would be handled by backend
-        }
         updateUser(editingUser.id, { ...editingUser, ...patch })
       } else {
         const id = createUser()
         const draft = state.users.find((u) => u.id === id)
         if (draft) {
-          updateUser(id, {
-            ...draft,
-            username: values.username,
-            displayName: values.displayName,
-            email: values.email,
-            phone: values.phone,
-            roleId: values.roleId,
-            roleCode: (selectedRole?.code ?? 'OPERATOR') as RoleCode,
-            status: values.status,
-          })
+          updateUser(id, { ...draft, ...patch } as User)
         }
       }
       setDrawerOpen(false)
       form.resetFields()
+      setFeilianProfile(null)
+      setFeilianQuery('')
     })
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false)
+    form.resetFields()
+    setFeilianProfile(null)
+    setFeilianQuery('')
   }
 
   const columns: ColumnsType<(typeof dataSource)[number]> = [
     {
-      title: '用户名',
+      title: '用户账号',
       dataIndex: 'username',
       key: 'username',
       render: (text: string, record) => (
@@ -135,7 +186,7 @@ export function UsersListPage() {
       ),
     },
     {
-      title: '显示名称',
+      title: '用户姓名',
       dataIndex: 'displayName',
       key: 'displayName',
       width: 120,
@@ -143,9 +194,15 @@ export function UsersListPage() {
     {
       title: '角色',
       key: 'role',
-      width: 140,
+      width: 220,
       render: (_, record) => (
-        <Tag color="blue">{record.roleName}</Tag>
+        <Flex wrap="wrap" gap={4}>
+          {record.roleNames.length === 0
+            ? <Text type="secondary">—</Text>
+            : record.roleNames.map((name) => (
+                <Tag key={name} color="blue" style={{ margin: 0 }}>{name}</Tag>
+              ))}
+        </Flex>
       ),
     },
     {
@@ -159,6 +216,13 @@ export function UsersListPage() {
       dataIndex: 'email',
       key: 'email',
       width: 200,
+    },
+    {
+      title: '部门',
+      dataIndex: 'department',
+      key: 'department',
+      width: 240,
+      render: (text: string | undefined) => text || <Text type="secondary">—</Text>,
     },
     {
       title: '状态',
@@ -215,25 +279,25 @@ export function UsersListPage() {
     <Space direction="vertical" size="large" style={{ display: 'flex' }}>
       <Space direction="vertical" size={4}>
         <Title level={4} style={{ margin: 0 }}>用户管理</Title>
-        <Text type="secondary">管理用户账号、角色分配与账号状态</Text>
+        <Text type="secondary">从飞连员工目录添加账号并分配角色（无需手动设置密码）</Text>
       </Space>
 
       <Row justify="space-between" align="middle">
         <Space>
           <Input
-            placeholder="搜索用户名/姓名/手机号"
+            placeholder="搜索用户账号/姓名/手机号"
             prefix={<SearchOutlined />}
             allowClear
-            style={{ width: 220 }}
+            style={{ width: 240 }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <Select
             placeholder="角色"
             allowClear
-            style={{ width: 120 }}
+            style={{ width: 140 }}
             value={roleFilter || undefined}
-            onChange={setRoleFilter}
+            onChange={(v) => setRoleFilter(v || '')}
             options={roleOptions}
           />
           <Select
@@ -241,7 +305,7 @@ export function UsersListPage() {
             allowClear
             style={{ width: 100 }}
             value={statusFilter || undefined}
-            onChange={setStatusFilter}
+            onChange={(v) => setStatusFilter(v || '')}
             options={[
               { label: '正常', value: 'ACTIVE' },
               { label: '已禁用', value: 'DISABLED' },
@@ -256,6 +320,7 @@ export function UsersListPage() {
       <Table
         columns={columns}
         dataSource={dataSource}
+        scroll={{ x: 1280 }}
         pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
         locale={{ emptyText: <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
@@ -263,82 +328,96 @@ export function UsersListPage() {
       <Drawer
         title={editingUser ? `编辑用户 - ${editingUser.displayName}` : '新建用户'}
         open={drawerOpen}
-        onClose={() => { setDrawerOpen(false); form.resetFields() }}
-        width={520}
+        onClose={closeDrawer}
+        width={560}
         footer={
           <Flex justify="end" gap={8}>
-            <Button onClick={() => { setDrawerOpen(false); form.resetFields() }}>取消</Button>
+            <Button onClick={closeDrawer}>取消</Button>
             <Button type="primary" onClick={handleSave}>保存</Button>
           </Flex>
         }
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="username"
-            label="用户名"
-            rules={[{ required: true, message: '请输入用户名' }]}
-          >
-            <Input placeholder="登录账号" />
-          </Form.Item>
-
-          <Form.Item
             name="displayName"
-            label="显示名称"
-            rules={[{ required: true, message: '请输入显示名称' }]}
+            label="用户姓名"
+            rules={[{ required: true, message: '请输入用户姓名' }]}
+            extra={editingUser ? '编辑模式下姓名不可更改' : '输入姓名从飞连员工目录联想，命中后自动带出工号、账号、手机号等信息'}
           >
-            <Input placeholder="如：张运营" />
+            <AutoComplete
+              disabled={Boolean(editingUser)}
+              value={feilianQuery}
+              options={feilianOptions}
+              onSearch={(v) => {
+                setFeilianQuery(v)
+                if (feilianProfile && v !== feilianProfile.displayName) {
+                  setFeilianProfile(null)
+                }
+              }}
+              onSelect={handleSelectFeilian}
+              placeholder="输入姓名搜索飞连员工"
+              filterOption={false}
+              allowClear
+              onClear={() => {
+                setFeilianProfile(null)
+                setFeilianQuery('')
+                form.setFieldValue('displayName', '')
+              }}
+            />
+          </Form.Item>
+
+          <Form.Item label="员工工号">
+            <Input value={feilianProfile?.employeeId ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="用户账号">
+            <Input value={feilianProfile?.username ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="手机号">
+            <Input value={feilianProfile?.phone ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="邮箱">
+            <Input value={feilianProfile?.email ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="职位">
+            <Input value={feilianProfile?.jobTitle ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="任职部门">
+            <Input value={feilianProfile?.department ?? ''} disabled placeholder="选择员工后自动带出" />
+          </Form.Item>
+
+          <Form.Item label="直接上级">
+            <Input value={feilianProfile?.reportsTo ?? ''} disabled placeholder="选择员工后自动带出" />
           </Form.Item>
 
           <Form.Item
-            name="email"
-            label="邮箱"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效邮箱' },
-            ]}
-          >
-            <Input placeholder="user@example.com" />
-          </Form.Item>
-
-          <Form.Item
-            name="phone"
-            label="手机号"
-            rules={[{ required: true, message: '请输入手机号' }]}
-          >
-            <Input placeholder="138xxxxxxxx" />
-          </Form.Item>
-
-          <Form.Item
-            name="roleId"
+            name="roleIds"
             label="角色"
-            rules={[{ required: true, message: '请选择角色' }]}
+            rules={[{ required: true, message: '请选择角色', type: 'array', min: 1 }]}
+            extra="可多选，最终权限为所选角色权限的并集"
           >
-            <Select placeholder="选择角色" options={roleOptions} />
+            <Select mode="multiple" allowClear placeholder="选择一个或多个角色" options={roleOptions} />
           </Form.Item>
 
-          {!editingUser && (
-            <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: !editingUser, message: '请输入密码' }]}
-            >
-              <Input.Password placeholder="设置登录密码" />
-            </Form.Item>
-          )}
-          {editingUser && (
-            <Form.Item name="password" label="密码" help="留空表示不修改">
-              <Input.Password placeholder="留空表示不修改" />
-            </Form.Item>
-          )}
+          <Form.Item name="remark" label="备注">
+            <Input.TextArea placeholder="请输入备注信息" rows={3} maxLength={200} showCount />
+          </Form.Item>
 
           <Form.Item
             name="status"
             label="状态"
-            valuePropName="checked"
-            getValueFromEvent={(checked) => (checked ? 'ACTIVE' : 'DISABLED')}
-            getValueProps={(value) => ({ checked: value === 'ACTIVE' })}
+            initialValue="ACTIVE"
           >
-            <Switch checkedChildren="正常" unCheckedChildren="已禁用" />
+            <Select
+              options={[
+                { label: '正常', value: 'ACTIVE' },
+                { label: '已禁用', value: 'DISABLED' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Drawer>

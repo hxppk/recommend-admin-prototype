@@ -43,11 +43,11 @@ interface AdminStoreValue {
 }
 
 export const CURRENT_USER = '陈悦'
-export const CURRENT_USER_ROLE = 'ADMIN'
+export const CURRENT_USER_ROLE: 'SUPER_ADMIN' | 'CUSTOM' = 'SUPER_ADMIN'
 
 const STORAGE_KEY = 'recommend-admin-store'
 const VERSION_KEY = 'recommend-admin-data-version'
-const DATA_VERSION = '20260427v11'
+const DATA_VERSION = '20260427v12'
 const AdminStoreContext = createContext<AdminStoreValue | null>(null)
 
 function replaceItem<T extends { id: string }>(items: T[], next: T) {
@@ -86,7 +86,8 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
         (parsed.pools?.[0] && !('productAddedTimes' in parsed.pools[0])) ||
         (parsed.strategies?.[0] && !('salesDataSource' in parsed.strategies[0])) ||
         !parsed.users ||
-        !parsed.roles
+        !parsed.roles ||
+        (parsed.users?.[0] && !('roleIds' in parsed.users[0]))
       ) {
         return initialState
       }
@@ -329,14 +330,14 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
     },
     createUser() {
       const id = createId('user')
+      const defaultRoleId = state.roles.find((r) => r.id === 'role-operator')?.id ?? state.roles[0]?.id
       const next: User = {
         id,
         username: '',
         displayName: '',
         email: '',
         phone: '',
-        roleId: state.roles.find((r) => r.code === 'OPERATOR')?.id ?? state.roles[0]?.id ?? '',
-        roleCode: 'OPERATOR',
+        roleIds: defaultRoleId ? [defaultRoleId] : [],
         status: 'ACTIVE',
         lastLoginAt: null,
         createdAt: '2026-04-20 10:00',

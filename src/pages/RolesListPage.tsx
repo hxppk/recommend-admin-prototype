@@ -20,7 +20,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { formatDate } from '../lib/domain'
 import { CURRENT_USER, useAdminStore } from '../lib/store'
-import type { Role, RoleCode } from '../lib/types'
+import type { Role } from '../lib/types'
 
 const { Title, Text } = Typography
 
@@ -44,18 +44,6 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   preview: ['preview:read'],
   user: ['user:read', 'user:write'],
   role: ['role:read', 'role:write'],
-}
-
-function toRoleCode(name: string): RoleCode {
-  const map: Record<string, RoleCode> = {
-    '超级管理员': 'SUPER_ADMIN',
-    '管理员': 'ADMIN',
-    '小程序配置': 'MINIAPP_CONFIG',
-    '商品运营': 'PRODUCT_OPS',
-    '运营人员': 'OPERATOR',
-    '观察者': 'VIEWER',
-  }
-  return map[name] || 'CUSTOM'
 }
 
 export function RolesListPage() {
@@ -107,12 +95,18 @@ export function RolesListPage() {
 
   function handleSave() {
     form.validateFields().then((values) => {
+      const trimmed = (values.name || '').trim()
+      const duplicated = state.roles.some(
+        (r) => r.name === trimmed && r.id !== editingRole?.id,
+      )
+      if (duplicated) {
+        form.setFields([{ name: 'name', errors: ['角色名称已存在'] }])
+        return
+      }
       if (editingRole) {
-        const code = toRoleCode(values.name)
         updateRole(editingRole.id, {
           ...editingRole,
-          name: values.name,
-          code,
+          name: trimmed,
           description: values.description || '',
           permissions: values.permissions || [],
         })
@@ -120,11 +114,9 @@ export function RolesListPage() {
         const id = createRole()
         const role = state.roles.find((r) => r.id === id)
         if (role) {
-          const code = toRoleCode(values.name)
           updateRole(id, {
             ...role,
-            name: values.name,
-            code,
+            name: trimmed,
             description: values.description || '',
             permissions: values.permissions || [],
           })
@@ -261,24 +253,28 @@ export function RolesListPage() {
       />
 
       <Drawer
-        title={editingRole ? `编辑角色 - ${editingRole.name}` : '新建角色'}
+        title={editingRole ? (editingRole.kind === 'SYSTEM' ? `查看角色 - ${editingRole.name}` : `编辑角色 - ${editingRole.name}`) : '新建角色'}
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); form.resetFields() }}
         width={560}
         footer={
           <Flex justify="end" gap={8}>
-            <Button onClick={() => { setDrawerOpen(false); form.resetFields() }}>取消</Button>
-            <Button type="primary" onClick={handleSave}>保存</Button>
+            <Button onClick={() => { setDrawerOpen(false); form.resetFields() }}>
+              {editingRole?.kind === 'SYSTEM' ? '关闭' : '取消'}
+            </Button>
+            {editingRole?.kind !== 'SYSTEM' && (
+              <Button type="primary" onClick={handleSave}>保存</Button>
+            )}
           </Flex>
         }
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" disabled={editingRole?.kind === 'SYSTEM'}>
           <Form.Item
             name="name"
             label="角色名称"
             rules={[{ required: true, message: '请输入角色名称' }]}
           >
-            <Input placeholder="如：超级管理员" />
+            <Input placeholder="如：商品运营" />
           </Form.Item>
 
           <Form.Item name="description" label="描述">
