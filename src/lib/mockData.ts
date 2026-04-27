@@ -422,6 +422,24 @@ const ALL_PERMISSIONS = [
 
 const ADMIN_PERMISSIONS = ALL_PERMISSIONS.filter(p => !p.startsWith('user:') && !p.startsWith('role:'))
 
+const MINIAPP_CONFIG_PERMISSIONS = [
+  'pool:read',
+  'strategy:read', 'strategy:write',
+  'combination:read', 'combination:write',
+  'plan:read', 'plan:write',
+  'monitoring:read',
+  'preview:read',
+]
+
+const PRODUCT_OPS_PERMISSIONS = [
+  'pool:read', 'pool:write',
+  'strategy:read',
+  'combination:read',
+  'plan:read',
+  'monitoring:read',
+  'preview:read',
+]
+
 const OPERATOR_PERMISSIONS = [
   'pool:read', 'pool:write',
   'combination:read', 'combination:write',
@@ -430,6 +448,26 @@ const OPERATOR_PERMISSIONS = [
 ]
 
 const VIEWER_PERMISSIONS = ALL_PERMISSIONS.filter(p => p.endsWith(':read'))
+
+const ALL_SCOPE: NonNullable<Role['dataScopes']> = {
+  pool: 'ALL',
+  strategy: 'ALL',
+  combination: 'ALL',
+  plan: 'ALL',
+  dashboard: 'ALL',
+  monitoring: 'ALL',
+  report: 'ALL',
+}
+
+const OWN_SCOPE: NonNullable<Role['dataScopes']> = {
+  pool: 'OWN',
+  strategy: 'OWN',
+  combination: 'OWN',
+  plan: 'OWN',
+  dashboard: 'ALL',
+  monitoring: 'ALL',
+  report: 'ALL',
+}
 
 const ROLES: Role[] = [
   {
@@ -441,6 +479,7 @@ const ROLES: Role[] = [
     createdAt: '2026-01-01 10:00',
     createdBy: 'system',
     kind: 'SYSTEM',
+    dataScopes: ALL_SCOPE,
   },
   {
     id: 'role-admin',
@@ -451,16 +490,40 @@ const ROLES: Role[] = [
     createdAt: '2026-01-01 10:00',
     createdBy: 'system',
     kind: 'SYSTEM',
+    dataScopes: ALL_SCOPE,
+  },
+  {
+    id: 'role-miniapp-config',
+    name: '小程序配置',
+    code: 'MINIAPP_CONFIG',
+    description: '排序策略、策略组合、投放计划读写，选品池只读，效果监控只读',
+    permissions: MINIAPP_CONFIG_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+    dataScopes: ALL_SCOPE,
+  },
+  {
+    id: 'role-product-ops',
+    name: '商品运营',
+    code: 'PRODUCT_OPS',
+    description: '选品池读写，策略/组合/计划只读，效果监控只读',
+    permissions: PRODUCT_OPS_PERMISSIONS,
+    createdAt: '2026-01-01 10:00',
+    createdBy: 'system',
+    kind: 'SYSTEM',
+    dataScopes: ALL_SCOPE,
   },
   {
     id: 'role-operator',
     name: '运营人员',
     code: 'OPERATOR',
-    description: '选品池、策略组合、投放计划读写，效果监控只读',
+    description: '选品池、策略组合、投放计划自建内容读写，效果监控只读',
     permissions: OPERATOR_PERMISSIONS,
     createdAt: '2026-01-01 10:00',
     createdBy: 'system',
     kind: 'SYSTEM',
+    dataScopes: OWN_SCOPE,
   },
   {
     id: 'role-viewer',
@@ -471,6 +534,7 @@ const ROLES: Role[] = [
     createdAt: '2026-01-01 10:00',
     createdBy: 'system',
     kind: 'SYSTEM',
+    dataScopes: ALL_SCOPE,
   },
 ]
 

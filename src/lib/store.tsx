@@ -13,7 +13,6 @@ import type {
   Plan,
   Pool,
   Role,
-  RoleCode,
   Strategy,
   User,
 } from './types'
@@ -48,7 +47,7 @@ export const CURRENT_USER_ROLE = 'ADMIN'
 
 const STORAGE_KEY = 'recommend-admin-store'
 const VERSION_KEY = 'recommend-admin-data-version'
-const DATA_VERSION = '20260411v10'
+const DATA_VERSION = '20260427v11'
 const AdminStoreContext = createContext<AdminStoreValue | null>(null)
 
 function replaceItem<T extends { id: string }>(items: T[], next: T) {
@@ -301,7 +300,7 @@ export function AdminStoreProvider({ children }: PropsWithChildren) {
       const next: Role = {
         id,
         name: `新建角色 ${state.roles.length}`,
-        code: 'CUSTOM' as RoleCode,
+        code: 'CUSTOM',
         description: '',
         permissions: [],
         createdAt: '2026-04-20 10:00',

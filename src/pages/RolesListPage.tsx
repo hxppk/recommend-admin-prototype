@@ -9,6 +9,7 @@ import {
   Form,
   Input,
   Modal,
+  Popover,
   Row,
   Space,
   Table,
@@ -49,10 +50,12 @@ function toRoleCode(name: string): RoleCode {
   const map: Record<string, RoleCode> = {
     '超级管理员': 'SUPER_ADMIN',
     '管理员': 'ADMIN',
+    '小程序配置': 'MINIAPP_CONFIG',
+    '商品运营': 'PRODUCT_OPS',
     '运营人员': 'OPERATOR',
     '观察者': 'VIEWER',
   }
-  return map[name] || 'CUSTOM' as RoleCode
+  return map[name] || 'CUSTOM'
 }
 
 export function RolesListPage() {
@@ -157,17 +160,32 @@ export function RolesListPage() {
       title: '权限数量',
       dataIndex: 'permissions',
       key: 'permissions',
-      width: 100,
+      width: 420,
       render: (perms: string[]) => (
-        <Space direction="vertical" size={2}>
+        <Flex align="center" gap={6} wrap="nowrap">
           <Tag color="blue">{perms.length}</Tag>
-          <Flex wrap="wrap" gap={4}>
+          <Flex wrap="nowrap" gap={4}>
             {perms.slice(0, 3).map((p) => (
               <Tag key={p} style={{ margin: 0, fontSize: 11 }}>{p}</Tag>
             ))}
-            {perms.length > 3 && <Tag style={{ margin: 0, fontSize: 11 }}>+{perms.length - 3}</Tag>}
+            {perms.length > 3 && (
+              <Popover
+                title="完整权限列表"
+                content={(
+                  <Flex wrap="wrap" gap={4} style={{ maxWidth: 420 }}>
+                    {perms.map((p) => (
+                      <Tag key={p} style={{ margin: 0, fontSize: 11 }}>{p}</Tag>
+                    ))}
+                  </Flex>
+                )}
+              >
+                <Tag style={{ margin: 0, fontSize: 11, cursor: 'pointer' }}>
+                  +{perms.length - 3}
+                </Tag>
+              </Popover>
+            )}
           </Flex>
-        </Space>
+        </Flex>
       ),
     },
     {
@@ -237,6 +255,7 @@ export function RolesListPage() {
       <Table
         columns={columns}
         dataSource={dataSource}
+        scroll={{ x: 1150 }}
         pagination={false}
         locale={{ emptyText: <Empty description="暂无数据" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />

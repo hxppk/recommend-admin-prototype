@@ -148,8 +148,25 @@ export interface AdminState {
   users: User[]
 }
 
-export type RoleCode = 'SUPER_ADMIN' | 'ADMIN' | 'OPERATOR' | 'VIEWER'
+export type RoleCode =
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
+  | 'MINIAPP_CONFIG'
+  | 'PRODUCT_OPS'
+  | 'OPERATOR'
+  | 'VIEWER'
+  | 'CUSTOM'
 export type UserStatus = 'ACTIVE' | 'DISABLED'
+
+export type DataScope = 'OWN' | 'TEAM' | 'ALL' | 'REGION' | 'STORE'
+export type ScopedResource =
+  | 'pool'
+  | 'strategy'
+  | 'combination'
+  | 'plan'
+  | 'dashboard'
+  | 'monitoring'
+  | 'report'
 
 export interface Role {
   id: string
@@ -160,6 +177,7 @@ export interface Role {
   createdAt: string
   createdBy: string
   kind?: 'SYSTEM' | 'CUSTOM'
+  dataScopes?: Partial<Record<ScopedResource, DataScope>>
 }
 
 export interface User {
@@ -174,6 +192,9 @@ export interface User {
   lastLoginAt: string | null
   createdAt: string
   createdBy: string
+  teamIds?: string[]
+  regionIds?: string[]
+  storeIds?: string[]
 }
 
 export interface PreviewSlotResult {
